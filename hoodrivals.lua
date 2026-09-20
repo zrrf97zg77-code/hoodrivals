@@ -1,6 +1,6 @@
 --// HOOD RIVALS
---// DELTA EXECUTOR — AIM-ASSIST + ESP + TRIGGERBOT + COMPACT GUI
---// v3.4  |  Mobile-friendly • Fixed toggles
+--// DELTA EXECUTOR — CAMLOCK + ESP + TRIGGERBOT
+--// v3.5  |  Fixed ESP (ScreenGui-based), camlock, working triggerbot
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -19,13 +19,13 @@ local Camera = workspace.CurrentCamera
 local Settings = {
     Enabled = false,
     FOV = 180,
-    Smoothness = 0.18,
+    Smoothness = 0.35,
     TeamCheck = true,
     WallCheck = true,
     TargetPart = "Head",
     ShowFOV = true,
-    LockOn = false,
-    PriorityMode = "Distance",
+    LockOn = true,
+    PriorityMode = "FOV",
     IgnoreDowned = true,
     MinHealth = 0,
     MaxDistance = 500,
@@ -84,6 +84,16 @@ ScreenGui.IgnoreGuiInset = true
 ScreenGui.Enabled = true
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 task.defer(function() ScreenGui.Parent = GetGuiParent() end)
+
+-- ESP overlay gui (separate so it draws below the menu)
+local ESPGui = Instance.new("ScreenGui")
+ESPGui.Name = "HoodRivalsESP"
+ESPGui.ResetOnSpawn = false
+ESPGui.IgnoreGuiInset = true
+ESPGui.Enabled = true
+ESPGui.DisplayOrder = 5
+ESPGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+task.defer(function() ESPGui.Parent = GetGuiParent() end)
 
 --==================================================
 -- UTILITY
@@ -231,10 +241,6 @@ MainGradient.Parent = Main
 Corner(MainGradient, 16)
 Gradient(MainGradient, Settings.UIColors.accent, Settings.UIColors.accent2, 135)
 
---==================================================
--- TITLE BAR
---==================================================
-
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 58)
 TitleBar.BackgroundTransparency = 1
@@ -324,7 +330,7 @@ Corner(VersionPill, 8)
 local VersionText = Instance.new("TextLabel")
 VersionText.Size = UDim2.new(1, 0, 1, 0)
 VersionText.BackgroundTransparency = 1
-VersionText.Text = "v3.4"
+VersionText.Text = "v3.5"
 VersionText.TextColor3 = Settings.UIColors.accent
 VersionText.TextSize = 9
 VersionText.Font = Enum.Font.GothamBold
@@ -352,10 +358,6 @@ Close.ZIndex = 3
 Close.Parent = TitleBar
 Corner(Close, 8)
 
---==================================================
--- TAB BAR
---==================================================
-
 local TabBar = Instance.new("Frame")
 TabBar.Size = UDim2.new(1, -24, 0, 30)
 TabBar.Position = UDim2.fromOffset(12, 58)
@@ -379,10 +381,6 @@ TabIndicator.ZIndex = 3
 TabIndicator.Parent = TabBar
 Corner(TabIndicator, 6)
 Gradient(TabIndicator, Settings.UIColors.accent, Settings.UIColors.accent2, 0)
-
---==================================================
--- PAGE CONTAINER
---==================================================
 
 local PageFrame = Instance.new("Frame")
 PageFrame.Size = UDim2.new(1, -24, 1, -144)
@@ -415,10 +413,6 @@ local function CreatePage(name)
     Pages[name] = page
     return page
 end
-
---==================================================
--- TAB SWITCHING
---==================================================
 
 local Tabs = {}
 local currentPage = nil
@@ -571,10 +565,8 @@ local function CreateToggle(parent, name, description, default, callback)
 
     Button.MouseButton1Click:Connect(flip)
     Button.Activated:Connect(flip)
-    Button.TouchTap:Connect(flip)
 
     Update()
-
     return Holder
 end
 
@@ -772,59 +764,39 @@ CreateTab("ESP")
 CreateTab("Extras")
 CreateTab("Misc")
 
---==== AIM PAGE ====
+-- AIM
 do
     local p = Pages["Aim"]
-
     CreateSectionLabel(p, "CORE")
     CreateToggle(p, "AIM ASSIST", "Master toggle", Settings.Enabled, function(v)
         Settings.Enabled = v
         StatusDot.BackgroundColor3 = v and Settings.UIColors.success or Settings.UIColors.subtext
     end)
-    CreateToggle(p, "SHOW FOV", "Aim radius circle", Settings.ShowFOV, function(v)
-        Settings.ShowFOV = v
-    end)
-    CreateToggle(p, "TEAM CHECK", "Ignore teammates", Settings.TeamCheck, function(v)
-        Settings.TeamCheck = v
-    end)
-    CreateToggle(p, "WALL CHECK", "Line-of-sight only", Settings.WallCheck, function(v)
-        Settings.WallCheck = v
-    end)
+    CreateToggle(p, "SHOW FOV", "Aim radius circle", Settings.ShowFOV, function(v) Settings.ShowFOV = v end)
+    CreateToggle(p, "TEAM CHECK", "Ignore teammates", Settings.TeamCheck, function(v) Settings.TeamCheck = v end)
+    CreateToggle(p, "WALL CHECK", "Line-of-sight only", Settings.WallCheck, function(v) Settings.WallCheck = v end)
 
     CreateSectionLabel(p, "TRIGGERBOT")
-    CreateToggle(p, "TRIGGERBOT", "Auto-fire on target", Settings.TriggerBot, function(v)
-        Settings.TriggerBot = v
-    end)
-    CreateSlider(p, "TRIGGER DELAY", 0.01, 0.5, Settings.TriggerDelay, function(v)
-        Settings.TriggerDelay = v
-    end)
+    CreateToggle(p, "TRIGGERBOT", "Auto-fire on target", Settings.TriggerBot, function(v) Settings.TriggerBot = v end)
+    CreateSlider(p, "TRIGGER DELAY", 0.01, 0.5, Settings.TriggerDelay, function(v) Settings.TriggerDelay = v end)
 
     CreateSectionLabel(p, "BEHAVIOR")
-    CreateDropdown(p, "PRIORITY", {"Distance", "Health", "FOV", "Threat"}, Settings.PriorityMode, function(v)
-        Settings.PriorityMode = v
-    end)
-    CreateToggle(p, "LOCK-ON", "Sticky targeting", Settings.LockOn, function(v)
-        Settings.LockOn = v
-    end)
-    CreateToggle(p, "IGNORE LOW HP", "Skip downed", Settings.IgnoreDowned, function(v)
-        Settings.IgnoreDowned = v
-    end)
+    CreateDropdown(p, "PRIORITY", {"FOV", "Distance", "Health", "Threat"}, Settings.PriorityMode, function(v) Settings.PriorityMode = v end)
+    CreateToggle(p, "LOCK-ON", "Sticky targeting", Settings.LockOn, function(v) Settings.LockOn = v end)
+    CreateToggle(p, "IGNORE LOW HP", "Skip downed", Settings.IgnoreDowned, function(v) Settings.IgnoreDowned = v end)
 
     CreateSectionLabel(p, "TUNING")
     CreateSlider(p, "FOV", 30, 600, Settings.FOV, function(v) Settings.FOV = v end)
-    CreateSlider(p, "SMOOTHNESS", 0.02, 1, Settings.Smoothness, function(v) Settings.Smoothness = v end)
+    CreateSlider(p, "SMOOTHNESS", 0.05, 1, Settings.Smoothness, function(v) Settings.Smoothness = v end)
     CreateSlider(p, "MAX DISTANCE", 50, 1000, Settings.MaxDistance, function(v) Settings.MaxDistance = v end)
     CreateSlider(p, "MIN HEALTH %", 0, 100, Settings.MinHealth, function(v) Settings.MinHealth = v end)
 end
 
---==== ESP PAGE ====
+-- ESP
 do
     local p = Pages["ESP"]
-
     CreateSectionLabel(p, "MASTER")
-    CreateToggle(p, "ESP ENABLED", "Show all ESP", Settings.ESPEnabled, function(v)
-        Settings.ESPEnabled = v
-    end)
+    CreateToggle(p, "ESP ENABLED", "Show all ESP", Settings.ESPEnabled, function(v) Settings.ESPEnabled = v end)
 
     CreateSectionLabel(p, "ELEMENTS")
     CreateToggle(p, "BOX", "Bounding box", Settings.ESPBox, function(v) Settings.ESPBox = v end)
@@ -835,41 +807,26 @@ do
     CreateToggle(p, "HEAD DOT", "Dot on head", Settings.ESPHeadDot, function(v) Settings.ESPHeadDot = v end)
 
     CreateSectionLabel(p, "STYLE")
-    CreateToggle(p, "TEAM COLOR", "Use team colors", Settings.ESPTeamColor, function(v)
-        Settings.ESPTeamColor = v
-    end)
+    CreateToggle(p, "TEAM COLOR", "Use team colors", Settings.ESPTeamColor, function(v) Settings.ESPTeamColor = v end)
 end
 
---==== EXTRAS PAGE ====
+-- EXTRAS
 do
     local p = Pages["Extras"]
-
     CreateSectionLabel(p, "FEEDBACK")
-    CreateToggle(p, "HIT SOUND", "Sound on damage", Settings.HitSound, function(v)
-        Settings.HitSound = v
-    end)
-    CreateToggle(p, "KILL NOTIFIER", "Death popup", Settings.KillNotifier, function(v)
-        Settings.KillNotifier = v
-    end)
+    CreateToggle(p, "HIT SOUND", "Sound on damage", Settings.HitSound, function(v) Settings.HitSound = v end)
+    CreateToggle(p, "KILL NOTIFIER", "Death popup", Settings.KillNotifier, function(v) Settings.KillNotifier = v end)
 
     CreateSectionLabel(p, "CROSSHAIR")
-    CreateToggle(p, "SHOW CROSSHAIR", "Center dot", Settings.Crosshair, function(v)
-        Settings.Crosshair = v
-    end)
-    CreateSlider(p, "CROSSHAIR SIZE", 4, 40, Settings.CrosshairSize, function(v)
-        Settings.CrosshairSize = v
-    end)
+    CreateToggle(p, "SHOW CROSSHAIR", "Center dot", Settings.Crosshair, function(v) Settings.Crosshair = v end)
+    CreateSlider(p, "CROSSHAIR SIZE", 4, 40, Settings.CrosshairSize, function(v) Settings.CrosshairSize = v end)
 end
 
---==== MISC PAGE ====
+-- MISC
 do
     local p = Pages["Misc"]
-
     CreateSectionLabel(p, "TARGET PART")
-    CreateDropdown(p, "TARGET PART",
-        {"Head", "UpperTorso", "HumanoidRootPart", "LowerTorso"},
-        Settings.TargetPart,
-        function(v) Settings.TargetPart = v end)
+    CreateDropdown(p, "TARGET PART", {"Head", "UpperTorso", "HumanoidRootPart", "LowerTorso"}, Settings.TargetPart, function(v) Settings.TargetPart = v end)
 
     CreateSectionLabel(p, "CONFIG")
     local saveBtn = Instance.new("TextButton")
@@ -895,10 +852,6 @@ do
             if writefile then
                 writefile("hoodrivals_config.json", HttpService:JSONEncode(data))
                 saveBtn.Text = "SAVED ✓"
-                task.wait(1.2)
-                saveBtn.Text = "SAVE CONFIG"
-            else
-                saveBtn.Text = "NO FILE API"
                 task.wait(1.2)
                 saveBtn.Text = "SAVE CONFIG"
             end
@@ -927,33 +880,11 @@ do
                 loadBtn.Text = "LOADED ✓"
                 task.wait(1.2)
                 loadBtn.Text = "LOAD CONFIG"
-            else
-                loadBtn.Text = "NO FILE API"
-                task.wait(1.2)
-                loadBtn.Text = "LOAD CONFIG"
             end
         end)
     end)
 
     CreateSectionLabel(p, "INFO")
-    local infoHolder = Instance.new("Frame")
-    infoHolder.Size = UDim2.new(1, -6, 0, 48)
-    infoHolder.BackgroundColor3 = Settings.UIColors.panel
-    infoHolder.Parent = p
-    Corner(infoHolder, 10)
-    Stroke(infoHolder, Color3.fromRGB(35, 35, 48), 1, 0.4)
-
-    local info = Instance.new("TextLabel")
-    info.Size = UDim2.new(1, -20, 1, 0)
-    info.Position = UDim2.fromOffset(10, 0)
-    info.BackgroundTransparency = 1
-    info.Text = "Hood Rivals v3.4 • Delta\nMade for testing • Use responsibly"
-    info.TextColor3 = Settings.UIColors.subtext
-    info.TextSize = 10
-    info.Font = Enum.Font.Gotham
-    info.TextXAlignment = Enum.TextXAlignment.Left
-    info.Parent = infoHolder
-
     local unloadBtn = Instance.new("TextButton")
     unloadBtn.Size = UDim2.new(1, -6, 0, 38)
     unloadBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 30)
@@ -971,7 +902,6 @@ do
     end)
 end
 
--- Default tab
 task.defer(function()
     task.wait(0.1)
     local firstTab = Tabs["Aim"]
@@ -1129,39 +1059,81 @@ local function Notify(text, color)
 end
 
 --==================================================
--- ESP DRAWINGS
+-- ESP (ScreenGui based - works everywhere)
 --==================================================
 
-local Drawings = {}
+local ESPStore = {} -- [player] = { Box=Frame, HealthBg=Frame, Health=Frame, Name=Label, Dist=Label, Tracer=Frame, HeadDot=Frame }
 
-local function NewDrawing(class, props)
-    local ok, obj = pcall(function() return Drawing.new(class) end)
-    if not ok or not obj then return nil end
-    for k, v in pairs(props) do pcall(function() obj[k] = v end) end
-    return obj
+local function MakeFrame(parent, color)
+    local f = Instance.new("Frame")
+    f.BackgroundColor3 = color or Settings.ESPColor
+    f.BorderSizePixel = 0
+    f.Visible = false
+    f.ZIndex = 10
+    f.Parent = parent
+    return f
 end
 
 local function CreateESP(player)
-    if Drawings[player] then return Drawings[player] end
-    local entry = {}
-    if Drawing then
-        entry.Box = NewDrawing("Square", { Thickness = 1.5, Filled = false, Transparency = 1, Color = Settings.ESPColor, Visible = false })
-        entry.HealthBg = NewDrawing("Square", { Thickness = 1, Filled = true, Transparency = 1, Color = Color3.fromRGB(20, 20, 20), Visible = false })
-        entry.Health = NewDrawing("Square", { Thickness = 1, Filled = true, Transparency = 1, Color = Color3.fromRGB(0, 255, 80), Visible = false })
-        entry.Name = NewDrawing("Text", { Size = 14, Center = true, Outline = true, OutlineColor = Color3.fromRGB(0, 0, 0), Color = Color3.fromRGB(255, 255, 255), Font = 2, Visible = false })
-        entry.Distance = NewDrawing("Text", { Size = 12, Center = true, Outline = true, OutlineColor = Color3.fromRGB(0, 0, 0), Color = Color3.fromRGB(200, 200, 200), Font = 2, Visible = false })
-        entry.Tracer = NewDrawing("Line", { Thickness = 1.5, Transparency = 1, Color = Settings.ESPColor, Visible = false })
-        entry.HeadDot = NewDrawing("Circle", { Thickness = 1, Filled = true, Transparency = 1, Color = Settings.ESPColor, Radius = 4, Visible = false })
-    end
-    Drawings[player] = entry
-    return entry
+    if ESPStore[player] then return ESPStore[player] end
+    local e = {}
+
+    e.Box = MakeFrame(ESPGui)
+    e.Box.BackgroundTransparency = 1
+    local boxStroke = Instance.new("UIStroke")
+    boxStroke.Color = Settings.ESPColor
+    boxStroke.Thickness = 1.5
+    boxStroke.Parent = e.Box
+    e.BoxStroke = boxStroke
+
+    e.HealthBg = MakeFrame(ESPGui, Color3.fromRGB(20, 20, 20))
+    e.Health = MakeFrame(ESPGui, Color3.fromRGB(0, 255, 80))
+
+    e.Name = Instance.new("TextLabel")
+    e.Name.BackgroundTransparency = 1
+    e.Name.TextColor3 = Color3.fromRGB(255, 255, 255)
+    e.Name.TextSize = 13
+    e.Name.Font = Enum.Font.GothamBold
+    e.Name.TextStrokeTransparency = 0
+    e.Name.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    e.Name.Visible = false
+    e.Name.ZIndex = 11
+    e.Name.Parent = ESPGui
+
+    e.Distance = Instance.new("TextLabel")
+    e.Distance.BackgroundTransparency = 1
+    e.Distance.TextColor3 = Color3.fromRGB(220, 220, 220)
+    e.Distance.TextSize = 11
+    e.Distance.Font = Enum.Font.Gotham
+    e.Distance.TextStrokeTransparency = 0
+    e.Distance.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    e.Distance.Visible = false
+    e.Distance.ZIndex = 11
+    e.Distance.Parent = ESPGui
+
+    -- Tracer as a thin rotated frame
+    e.Tracer = MakeFrame(ESPGui)
+    e.Tracer.AnchorPoint = Vector2.new(0, 0.5)
+    e.Tracer.BorderSizePixel = 0
+
+    e.HeadDot = MakeFrame(ESPGui)
+    e.HeadDot.Size = UDim2.fromOffset(8, 8)
+    e.HeadDot.AnchorPoint = Vector2.new(0.5, 0.5)
+    local dotCorner = Instance.new("UICorner")
+    dotCorner.CornerRadius = UDim.new(1, 0)
+    dotCorner.Parent = e.HeadDot
+
+    ESPStore[player] = e
+    return e
 end
 
 local function RemoveESP(player)
-    local entry = Drawings[player]
-    if not entry then return end
-    for _, obj in pairs(entry) do pcall(function() obj:Remove() end) end
-    Drawings[player] = nil
+    local e = ESPStore[player]
+    if not e then return end
+    for _, v in pairs(e) do
+        pcall(function() v:Destroy() end)
+    end
+    ESPStore[player] = nil
 end
 
 Players.PlayerRemoving:Connect(RemoveESP)
@@ -1251,7 +1223,7 @@ local function PickTarget(list)
 end
 
 --==================================================
--- ESP UPDATER
+-- ESP UPDATER (ScreenGui)
 --==================================================
 
 local function GetPlayerColor(player)
@@ -1262,22 +1234,26 @@ local function GetPlayerColor(player)
 end
 
 local function UpdateESP()
-    if not Drawing then return end
     local viewport = Camera.ViewportSize
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
-        local entry = Drawings[player]
+        local e = ESPStore[player]
 
         if not Settings.ESPEnabled or not IsEnemy(player) or not player.Character then
-            if entry then
-                for _, obj in pairs(entry) do pcall(function() obj.Visible = false end) end
+            if e then
+                e.Box.Visible = false
+                e.Health.Visible = false
+                e.HealthBg.Visible = false
+                e.Name.Visible = false
+                e.Distance.Visible = false
+                e.Tracer.Visible = false
+                e.HeadDot.Visible = false
             end
             continue
         end
 
-        entry = entry or CreateESP(player)
-        if not entry or not entry.Box then continue end
+        e = e or CreateESP(player)
 
         local char = player.Character
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -1285,10 +1261,17 @@ local function UpdateESP()
         local headPart = char:FindFirstChild("Head")
 
         if not humanoid or not rootPart or not headPart or humanoid.Health <= 0 then
-            for _, obj in pairs(entry) do pcall(function() obj.Visible = false end) end
+            e.Box.Visible = false
+            e.Health.Visible = false
+            e.HealthBg.Visible = false
+            e.Name.Visible = false
+            e.Distance.Visible = false
+            e.Tracer.Visible = false
+            e.HeadDot.Visible = false
             continue
         end
 
+        -- Compute bounding box on screen
         local topY, bottomY = math.huge, -math.huge
         local leftX, rightX = math.huge, -math.huge
         local onScreen = false
@@ -1309,8 +1292,14 @@ local function UpdateESP()
             end
         end
 
-        if not onScreen then
-            for _, obj in pairs(entry) do pcall(function() obj.Visible = false end) end
+        if not onScreen or topY == math.huge then
+            e.Box.Visible = false
+            e.Health.Visible = false
+            e.HealthBg.Visible = false
+            e.Name.Visible = false
+            e.Distance.Visible = false
+            e.Tracer.Visible = false
+            e.HeadDot.Visible = false
             continue
         end
 
@@ -1318,65 +1307,94 @@ local function UpdateESP()
         local boxH = bottomY - topY
         local boxW = rightX - leftX
 
-        if Settings.ESPBox and entry.Box then
-            entry.Box.Visible = true
-            entry.Box.Color = color
-            entry.Box.Size = Vector2.new(boxW, boxH)
-            entry.Box.Position = Vector2.new(leftX, topY)
-        elseif entry.Box then entry.Box.Visible = false end
-
-        if Settings.ESPHealth and entry.Health and entry.HealthBg then
-            local hpPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-            local bw = 3
-            entry.HealthBg.Visible = true
-            entry.HealthBg.Size = Vector2.new(bw, boxH)
-            entry.HealthBg.Position = Vector2.new(leftX - 6, topY)
-            entry.Health.Visible = true
-            entry.Health.Size = Vector2.new(bw, boxH * hpPercent)
-            entry.Health.Position = Vector2.new(leftX - 6, topY + (boxH * (1 - hpPercent)))
-            if hpPercent > 0.5 then
-                entry.Health.Color = Color3.fromRGB(0, 255, 80)
-            elseif hpPercent > 0.25 then
-                entry.Health.Color = Color3.fromRGB(255, 200, 0)
-            else
-                entry.Health.Color = Color3.fromRGB(255, 40, 40)
-            end
+        -- BOX
+        if Settings.ESPBox then
+            e.Box.Visible = true
+            e.Box.Size = UDim2.fromOffset(boxW, boxH)
+            e.Box.Position = UDim2.fromOffset(leftX, topY)
+            e.BoxStroke.Color = color
         else
-            if entry.Health then entry.Health.Visible = false end
-            if entry.HealthBg then entry.HealthBg.Visible = false end
+            e.Box.Visible = false
         end
 
-        if Settings.ESPName and entry.Name then
-            entry.Name.Visible = true
-            entry.Name.Color = color
-            entry.Name.Position = Vector2.new(leftX + boxW / 2, topY - 16)
-            entry.Name.Text = player.Name
-        elseif entry.Name then entry.Name.Visible = false end
+        -- HEALTH
+        if Settings.ESPHealth then
+            local hpPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+            local bw = 3
+            e.HealthBg.Visible = true
+            e.HealthBg.Size = UDim2.fromOffset(bw, boxH)
+            e.HealthBg.Position = UDim2.fromOffset(leftX - 6, topY)
+            e.Health.Visible = true
+            e.Health.Size = UDim2.fromOffset(bw, boxHd * hpPercent)
+            e. HPHealth.Position = UDim2.fromOffset(leftX - ",6, topY + boxH math * (1 - hpPercent))
+            if hp.floorPercent > 0.5 then
+                e(b.Health.BackgroundColor3 = Color3.fromRGB(0, 255, 80)
+            elseif hpPercent > 0.25 then
+                e.Health.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+            else
+                e.Health.BackgroundColor3 = Color3.fromRGB(255, 40, 40)
+            end
+        else
+            e.Health.Visible = false
+            e.HealthBg.Visible = false
+        end
 
-        if Settings.ESPDistance and entry.Distance then
+        -- NAME
+        if Settings.ESPName then
+            e.Name.Visible = true
+            e.Name.Text = player.Name
+            e.Name.TextColor3 = color
+            e.Name.Size = UDim2.fromOffset(200, 16)
+            e.Name.Position = UDim2.fromOffset(leftX + boxW / 2 - 100, topY - 18)
+        else
+            e.Name.Visible = false
+        end
+
+        -- DISTANCE
+        if Settings.ESPDistance then
             local dist = (Camera.CFrame.Position - rootPart.Position).Magnitude
-            entry.Distance.Visible = true
-            entry.Distance.Position = Vector2.new(leftX + boxW / 2, bottomY + 4)
-            entry.Distance.Text = string.format("[%d studs]", math.floor(dist))
-        elseif entry.Distance then entry.Distance.Visible = false end
+            e.Distance.Visible = true
+            e.Distance.Text = string.format("[%d]", math.floor(dist))
+            e.Distance.Size = UDim2.fromOffset(100, 14)
+            e.Distance.Position = UDim2.fromOffset(leftX + boxW / 2 - 50, bottomY + 2)
+        else
+            e.Distance.Visible = false
+        end
 
-        if Settings.ESPTracer and entry.Tracer then
-            entry.Tracer.Visible = true
-            entry.Tracer.Color = color
-            entry.Tracer.From = Vector2.new(viewport.X / 2, viewport.Y)
-            entry.Tracer.To = Vector2.new(leftX + boxW / 2, bottomY)
-        elseif entry.Tracer then entry.Tracer.Visible = false end
+        -- TRACER (from bottom center of screen)
+        if Settings.ESPTracer then
+            local fromX = viewport.X / 2
+            local fromY = viewport.Y
+            local toX = leftX + boxW / 2
+            local toY = bottomY
 
-        if Settings.ESPHeadDot and entry.HeadDot then
+            local dx = toX - fromX
+            local dy = toY - fromY
+            local length = math.sqrt(dx * dx + dy * dy)
+            local angle = math.atan2(dy, dx)
+
+            e.Tracer.Visible = true
+            e.Tracer.BackgroundColor3 = color
+            e.Tracer.Size = UDim2.fromOffset(length, 1.5)
+            e.Tracer.Position = UDim2.fromOffset(fromX, fromY)
+            e.Tracer.Rotation = math.deg(angle)
+        else
+            e.Tracer.Visible = false
+        end
+
+        -- HEAD DOT
+        if Settings.ESPHeadDot then
             local hp, hv = Camera:WorldToViewportPoint(headPart.Position)
             if hv then
-                entry.HeadDot.Visible = true
-                entry.HeadDot.Color = color
-                entry.HeadDot.Position = Vector2.new(hp.X, hp.Y)
+                e.HeadDot.Visible = true
+                e.HeadDot.BackgroundColor3 = color
+                e.HeadDot.Position = UDim2.fromOffset(hp.X, hp.Y)
             else
-                entry.HeadDot.Visible = false
+                e.HeadDot.Visible = false
             end
-        elseif entry.HeadDot then entry.HeadDot.Visible = false end
+        else
+            e.HeadDot.Visible = false
+        end
     end
 end
 
@@ -1405,6 +1423,34 @@ local hitSound = Instance.new("Sound")
 hitSound.SoundId = "rbxassetid://9125402735"
 hitSound.Volume = 0.5
 hitSound.Parent = SoundService
+
+--==================================================
+-- TRIGGERBOT (multi-method fallback)
+--==================================================
+
+local function FireWeapon()
+    -- Try every possible executor method
+    local methods = {
+        function() if mouse1click then mouse1click() return true end end,
+        function() if mouse1down and mouse1up then mouse1down() task.wait(0.01) mouse1up() return true end end,
+        function() if syn and syn.mouse1click then syn.mouse1click() return true end end,
+        function() if virtualmouse and virtualmouse.click then virtualmouse.click() return true end end,
+        function()
+            -- Fallback: tap at crosshair position
+            if VirtualUser then
+                local vu = game:GetService("VirtualUser")
+                vu:CaptureController()
+                vu:ClickButton2(Vector2.new())
+                return true
+            end
+        end,
+    }
+    for _, m in ipairs(methods) do
+        local ok, result = pcall(m)
+        if ok and result then return true end
+    end
+    return false
+end
 
 --==================================================
 -- OPEN / CLOSE
@@ -1463,8 +1509,6 @@ RunService.RenderStepped:Connect(function(dt)
         CrosshairV.Size = UDim2.fromOffset(2, Settings.CrosshairSize)
         CrosshairH.Position = UDim2.fromOffset(center.X, center.Y)
         CrosshairV.Position = UDim2.fromOffset(center.X, center.Y)
-        CrosshairH.BackgroundColor3 = Settings.CrosshairColor
-        CrosshairV.BackgroundColor3 = Settings.CrosshairColor
     end
 
     pcall(UpdateESP)
@@ -1484,7 +1528,7 @@ RunService.RenderStepped:Connect(function(dt)
     if best and Settings.Enabled then
         TargetPanel.Visible = true
         TargetName.Text = best.player.Name
-        TargetInfo.Text = string.format("%d studs • %d HP", math.floor(best.worldDist), math.floor(best.hp))
+        TargetInfo.Text = string.format("%d studs • %est.worldDist), math.floor(best.hp))
         TargetHPFill.Size = UDim2.new(best.hp / 100, 0, 1, 0)
         if best.hp > 50 then
             TargetHPFill.BackgroundColor3 = Settings.UIColors.success
@@ -1497,25 +1541,26 @@ RunService.RenderStepped:Connect(function(dt)
         TargetPanel.Visible = false
     end
 
+    -- CAMLOCK: direct snap to head with adjustable smoothing
     if Settings.Enabled and best then
         local cameraPos = Camera.CFrame.Position
         local desired = CFrame.lookAt(cameraPos, best.part.Position)
-        Camera.CFrame = Camera.CFrame:Lerp(desired, Settings.Smoothness)
+
+        if Settings.Smoothness >= 0.99 then
+            -- instant camlock
+            Camera.CFrame = desired
+        else
+            -- smooth camlock
+            Camera.CFrame = Camera.CFrame:Lerp(desired, Settings.Smoothness)
+        end
     end
 
-    if Settings.TriggerBot and best then
+    -- TRIGGERBOT
+    if Settings.TriggerBot and best and Settings.Enabled then
         local now = tick()
         if now - Settings.lastTrigger >= Settings.TriggerDelay then
             Settings.lastTrigger = now
-            pcall(function()
-                if mouse1click then
-                    mouse1click()
-                elseif mouse1down and mouse1up then
-                    mouse1down()
-                    task.wait(0.02)
-                    mouse1up()
-                end
-            end)
+            FireWeapon()
         end
     end
 end)
@@ -1525,9 +1570,10 @@ end)
 --==================================================
 
 _G.HoodRivalsUnload = function()
-    for player, _ in pairs(Drawings) do
+    for player, _ in pairs(ESPStore) do
         RemoveESP(player)
     end
     if ScreenGui then ScreenGui:Destroy() end
+    if ESPGui then ESPGui:Destroy() end
     if hitSound then hitSound:Destroy() end
 end
