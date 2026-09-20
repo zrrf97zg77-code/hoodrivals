@@ -1,6 +1,6 @@
 --// HOOD RIVALS
 --// DELTA EXECUTOR — CAMLOCK + ESP + TRIGGERBOT
---// v3.5  |  Fixed ESP (ScreenGui-based), camlock, working triggerbot
+--// v3.6  |  Fixed toggles (track + knob + big tap target)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -85,7 +85,6 @@ ScreenGui.Enabled = true
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 task.defer(function() ScreenGui.Parent = GetGuiParent() end)
 
--- ESP overlay gui (separate so it draws below the menu)
 local ESPGui = Instance.new("ScreenGui")
 ESPGui.Name = "HoodRivalsESP"
 ESPGui.ResetOnSpawn = false
@@ -330,7 +329,7 @@ Corner(VersionPill, 8)
 local VersionText = Instance.new("TextLabel")
 VersionText.Size = UDim2.new(1, 0, 1, 0)
 VersionText.BackgroundTransparency = 1
-VersionText.Text = "v3.5"
+VersionText.Text = "v3.6"
 VersionText.TextColor3 = Settings.UIColors.accent
 VersionText.TextSize = 9
 VersionText.Font = Enum.Font.GothamBold
@@ -514,23 +513,36 @@ local function CreateToggle(parent, name, description, default, callback)
     Desc.TextXAlignment = Enum.TextXAlignment.Left
     Desc.Parent = Holder
 
+    -- Visible track (pill)
+    local Track = Instance.new("Frame")
+    Track.Size = UDim2.fromOffset(52, 28)
+    Track.Position = UDim2.new(1, -62, 0.5, -14)
+    Track.BackgroundColor3 = Color3.fromRGB(60, 60, 78)
+    Track.BorderSizePixel = 0
+    Track.Parent = Holder
+    Corner(Track, 14)
+    local TrackStroke = Stroke(Track, Color3.fromRGB(100, 100, 130), 1.5, 0)
+
+    -- Big invisible button covering the track + extra tap area
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.fromOffset(48, 26)
-    Button.Position = UDim2.new(1, -58, 0.5, -13)
-    Button.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
+    Button.Size = UDim2.fromOffset(64, 40)
+    Button.Position = UDim2.new(1, -68, 0.5, -20)
+    Button.BackgroundTransparency = 1
     Button.Text = ""
     Button.AutoButtonColor = false
     Button.Active = true
+    Button.ZIndex = 5
     Button.Parent = Holder
-    Corner(Button, 13)
-    Stroke(Button, Color3.fromRGB(70, 70, 90), 1.2, 0.2)
 
+    -- Sliding knob
     local Knob = Instance.new("Frame")
-    Knob.Size = UDim2.fromOffset(20, 20)
+    Knob.Size = UDim2.fromOffset(22, 22)
     Knob.Position = UDim2.fromOffset(3, 3)
-    Knob.BackgroundColor3 = Color3.fromRGB(180, 180, 190)
-    Knob.Parent = Button
-    Corner(Knob, 10)
+    Knob.BackgroundColor3 = Color3.fromRGB(235, 235, 245)
+    Knob.BorderSizePixel = 0
+    Knob.ZIndex = 4
+    Knob.Parent = Track
+    Corner(Knob, 11)
 
     local state = default or false
 
@@ -538,22 +550,22 @@ local function CreateToggle(parent, name, description, default, callback)
         local info = TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
         if state then
             TweenService:Create(Knob, info, {
-                Position = UDim2.fromOffset(25, 3),
+                Position = UDim2.fromOffset(27, 3),
                 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
             }):Play()
-            TweenService:Create(Button, info, {
+            TweenService:Create(Track, info, {
                 BackgroundColor3 = Settings.UIColors.accent,
             }):Play()
-            Button.UIStroke.Color = Settings.UIColors.accent
+            TrackStroke.Color = Settings.UIColors.accent
         else
             TweenService:Create(Knob, info, {
                 Position = UDim2.fromOffset(3, 3),
-                BackgroundColor3 = Color3.fromRGB(180, 180, 190),
+                BackgroundColor3 = Color3.fromRGB(235, 235, 245),
             }):Play()
-            TweenService:Create(Button, info, {
-                BackgroundColor3 = Color3.fromRGB(40, 40, 52),
+            TweenService:Create(Track, info, {
+                BackgroundColor3 = Color3.fromRGB(60, 60, 78),
             }):Play()
-            Button.UIStroke.Color = Color3.fromRGB(70, 70, 90)
+            TrackStroke.Color = Color3.fromRGB(100, 100, 130)
         end
     end
 
@@ -1059,10 +1071,10 @@ local function Notify(text, color)
 end
 
 --==================================================
--- ESP (ScreenGui based - works everywhere)
+-- ESP (ScreenGui-based)
 --==================================================
 
-local ESPStore = {} -- [player] = { Box=Frame, HealthBg=Frame, Health=Frame, Name=Label, Dist=Label, Tracer=Frame, HeadDot=Frame }
+local ESPStore = {}
 
 local function MakeFrame(parent, color)
     local f = Instance.new("Frame")
@@ -1111,7 +1123,6 @@ local function CreateESP(player)
     e.Distance.ZIndex = 11
     e.Distance.Parent = ESPGui
 
-    -- Tracer as a thin rotated frame
     e.Tracer = MakeFrame(ESPGui)
     e.Tracer.AnchorPoint = Vector2.new(0, 0.5)
     e.Tracer.BorderSizePixel = 0
@@ -1223,7 +1234,7 @@ local function PickTarget(list)
 end
 
 --==================================================
--- ESP UPDATER (ScreenGui)
+-- ESP UPDATER
 --==================================================
 
 local function GetPlayerColor(player)
@@ -1271,7 +1282,6 @@ local function UpdateESP()
             continue
         end
 
-        -- Compute bounding box on screen
         local topY, bottomY = math.huge, -math.huge
         local leftX, rightX = math.huge, -math.huge
         local onScreen = false
@@ -1307,7 +1317,6 @@ local function UpdateESP()
         local boxH = bottomY - topY
         local boxW = rightX - leftX
 
-        -- BOX
         if Settings.ESPBox then
             e.Box.Visible = true
             e.Box.Size = UDim2.fromOffset(boxW, boxH)
@@ -1317,7 +1326,6 @@ local function UpdateESP()
             e.Box.Visible = false
         end
 
-        -- HEALTH
         if Settings.ESPHealth then
             local hpPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
             local bw = 3
@@ -1325,10 +1333,10 @@ local function UpdateESP()
             e.HealthBg.Size = UDim2.fromOffset(bw, boxH)
             e.HealthBg.Position = UDim2.fromOffset(leftX - 6, topY)
             e.Health.Visible = true
-            e.Health.Size = UDim2.fromOffset(bw, boxHd * hpPercent)
-            e. HPHealth.Position = UDim2.fromOffset(leftX - ",6, topY + boxH math * (1 - hpPercent))
-            if hp.floorPercent > 0.5 then
-                e(b.Health.BackgroundColor3 = Color3.fromRGB(0, 255, 80)
+            e.Health.Size = UDim2.fromOffset(bw, boxH * hpPercent)
+            e.Health.Position = UDim2.fromOffset(leftX - 6, topY + boxH * (1 - hpPercent))
+            if hpPercent > 0.5 then
+                e.Health.BackgroundColor3 = Color3.fromRGB(0, 255, 80)
             elseif hpPercent > 0.25 then
                 e.Health.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
             else
@@ -1339,7 +1347,6 @@ local function UpdateESP()
             e.HealthBg.Visible = false
         end
 
-        -- NAME
         if Settings.ESPName then
             e.Name.Visible = true
             e.Name.Text = player.Name
@@ -1350,7 +1357,6 @@ local function UpdateESP()
             e.Name.Visible = false
         end
 
-        -- DISTANCE
         if Settings.ESPDistance then
             local dist = (Camera.CFrame.Position - rootPart.Position).Magnitude
             e.Distance.Visible = true
@@ -1361,7 +1367,6 @@ local function UpdateESP()
             e.Distance.Visible = false
         end
 
-        -- TRACER (from bottom center of screen)
         if Settings.ESPTracer then
             local fromX = viewport.X / 2
             local fromY = viewport.Y
@@ -1382,7 +1387,6 @@ local function UpdateESP()
             e.Tracer.Visible = false
         end
 
-        -- HEAD DOT
         if Settings.ESPHeadDot then
             local hp, hv = Camera:WorldToViewportPoint(headPart.Position)
             if hv then
@@ -1425,18 +1429,16 @@ hitSound.Volume = 0.5
 hitSound.Parent = SoundService
 
 --==================================================
--- TRIGGERBOT (multi-method fallback)
+-- TRIGGERBOT (multi-method)
 --==================================================
 
 local function FireWeapon()
-    -- Try every possible executor method
     local methods = {
         function() if mouse1click then mouse1click() return true end end,
         function() if mouse1down and mouse1up then mouse1down() task.wait(0.01) mouse1up() return true end end,
         function() if syn and syn.mouse1click then syn.mouse1click() return true end end,
         function() if virtualmouse and virtualmouse.click then virtualmouse.click() return true end end,
         function()
-            -- Fallback: tap at crosshair position
             if VirtualUser then
                 local vu = game:GetService("VirtualUser")
                 vu:CaptureController()
@@ -1528,7 +1530,7 @@ RunService.RenderStepped:Connect(function(dt)
     if best and Settings.Enabled then
         TargetPanel.Visible = true
         TargetName.Text = best.player.Name
-        TargetInfo.Text = string.format("%d studs • %est.worldDist), math.floor(best.hp))
+        TargetInfo.Text = string.format("%d studs • %d HP", math.floor(best.worldDist), math.floor(best.hp))
         TargetHPFill.Size = UDim2.new(best.hp / 100, 0, 1, 0)
         if best.hp > 50 then
             TargetHPFill.BackgroundColor3 = Settings.UIColors.success
@@ -1541,21 +1543,16 @@ RunService.RenderStepped:Connect(function(dt)
         TargetPanel.Visible = false
     end
 
-    -- CAMLOCK: direct snap to head with adjustable smoothing
     if Settings.Enabled and best then
         local cameraPos = Camera.CFrame.Position
         local desired = CFrame.lookAt(cameraPos, best.part.Position)
-
         if Settings.Smoothness >= 0.99 then
-            -- instant camlock
             Camera.CFrame = desired
         else
-            -- smooth camlock
             Camera.CFrame = Camera.CFrame:Lerp(desired, Settings.Smoothness)
         end
     end
 
-    -- TRIGGERBOT
     if Settings.TriggerBot and best and Settings.Enabled then
         local now = tick()
         if now - Settings.lastTrigger >= Settings.TriggerDelay then
