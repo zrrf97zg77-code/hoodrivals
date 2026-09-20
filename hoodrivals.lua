@@ -25,27 +25,36 @@ local Settings = {
 }
 
 --==================================================
--- GUI PARENT (executor-safe)
+-- GUI PARENT (input-safe)
 --==================================================
+-- PlayerGui is used because gethui()/get_hidden_gui() place the GUI
+-- in a protected layer that often blocks touch/mouse input on Delta.
+-- That's why the HR button wasn't responding.
 
 local function GetGuiParent()
+    local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+        or LocalPlayer:WaitForChild("PlayerGui", 5)
+    if pg then return pg end
+
+    -- Last resort fallbacks if PlayerGui is somehow missing
     if gethui then
         local ok, hui = pcall(gethui)
         if ok and hui then return hui end
     end
-    if get_hidden_gui then
-        local ok, hg = pcall(get_hidden_gui)
-        if ok and hg then return hg end
-    end
-    return LocalPlayer:WaitForChild("PlayerGui")
+    return game:GetService("CoreGui")
 end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HoodRivalsDeveloperUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
+ScreenGui.Enabled = true
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = GetGuiParent()
+
+-- Delay parent assignment so PlayerGui is fully ready on mobile
+task.defer(function()
+    ScreenGui.Parent = GetGuiParent()
+end)
 
 --==================================================
 -- FLOATING OPEN BUTTON
@@ -219,7 +228,7 @@ local function CreateToggle(name, description, callback)
 
     local state = false
 
-    Button.Activated:Connect(function()
+    Button.MouseButton1Click:Connect(function()
         state = not state
         if state then
             Button.Text = "ON"
@@ -412,10 +421,17 @@ local function SetMenuVisible(value)
     end
 end
 
+-- Two click handlers for maximum mobile compatibility
+OpenButton.MouseButton1Click:Connect(function()
+    SetMenuVisible(not Main.Visible)
+end)
 OpenButton.Activated:Connect(function()
     SetMenuVisible(not Main.Visible)
 end)
 
+Close.MouseButton1Click:Connect(function()
+    SetMenuVisible(false)
+end)
 Close.Activated:Connect(function()
     SetMenuVisible(false)
 end)
