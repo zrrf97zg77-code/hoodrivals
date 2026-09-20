@@ -1,6 +1,6 @@
 --// HOOD RIVALS
 --// DELTA EXECUTOR — AIM-ASSIST + ESP + TRIGGERBOT + COMPACT GUI
---// v3.3  |  Mobile-friendly
+--// v3.4  |  Mobile-friendly • Fixed toggles
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -125,7 +125,7 @@ local function Padding(parent, t, r, b, l)
 end
 
 --==================================================
--- FLOATING OPEN BUTTON (compact 54px)
+-- FLOATING OPEN BUTTON
 --==================================================
 
 local OpenWrapper = Instance.new("Frame")
@@ -207,7 +207,7 @@ do
 end
 
 --==================================================
--- MAIN WINDOW (compact 310x420)
+-- MAIN WINDOW
 --==================================================
 
 local Main = Instance.new("Frame")
@@ -232,7 +232,7 @@ Corner(MainGradient, 16)
 Gradient(MainGradient, Settings.UIColors.accent, Settings.UIColors.accent2, 135)
 
 --==================================================
--- TITLE BAR (compact 58px)
+-- TITLE BAR
 --==================================================
 
 local TitleBar = Instance.new("Frame")
@@ -324,7 +324,7 @@ Corner(VersionPill, 8)
 local VersionText = Instance.new("TextLabel")
 VersionText.Size = UDim2.new(1, 0, 1, 0)
 VersionText.BackgroundTransparency = 1
-VersionText.Text = "v3.3"
+VersionText.Text = "v3.4"
 VersionText.TextColor3 = Settings.UIColors.accent
 VersionText.TextSize = 9
 VersionText.Font = Enum.Font.GothamBold
@@ -353,7 +353,7 @@ Close.Parent = TitleBar
 Corner(Close, 8)
 
 --==================================================
--- TAB BAR (compact 30px)
+-- TAB BAR
 --==================================================
 
 local TabBar = Instance.new("Frame")
@@ -462,7 +462,7 @@ local function CreateTab(name)
 end
 
 --==================================================
--- COMPONENTS (compact)
+-- COMPONENTS
 --==================================================
 
 local function CreateSectionLabel(parent, text)
@@ -499,7 +499,7 @@ local function CreateToggle(parent, name, description, default, callback)
     Stroke(Holder, Color3.fromRGB(35, 35, 48), 1, 0.4)
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -70, 0, 18)
+    Label.Size = UDim2.new(1, -80, 0, 18)
     Label.Position = UDim2.fromOffset(10, 6)
     Label.BackgroundTransparency = 1
     Label.Text = name
@@ -510,7 +510,7 @@ local function CreateToggle(parent, name, description, default, callback)
     Label.Parent = Holder
 
     local Desc = Instance.new("TextLabel")
-    Desc.Size = UDim2.new(1, -70, 0, 14)
+    Desc.Size = UDim2.new(1, -80, 0, 14)
     Desc.Position = UDim2.fromOffset(10, 26)
     Desc.BackgroundTransparency = 1
     Desc.Text = description
@@ -521,21 +521,22 @@ local function CreateToggle(parent, name, description, default, callback)
     Desc.Parent = Holder
 
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.fromOffset(42, 24)
-    Button.Position = UDim2.new(1, -52, 0.5, -12)
-    Button.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+    Button.Size = UDim2.fromOffset(48, 26)
+    Button.Position = UDim2.new(1, -58, 0.5, -13)
+    Button.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
     Button.Text = ""
     Button.AutoButtonColor = false
+    Button.Active = true
     Button.Parent = Holder
-    Corner(Button, 12)
-    Stroke(Button, Color3.fromRGB(50, 50, 65), 1, 0.4)
+    Corner(Button, 13)
+    Stroke(Button, Color3.fromRGB(70, 70, 90), 1.2, 0.2)
 
     local Knob = Instance.new("Frame")
-    Knob.Size = UDim2.fromOffset(18, 18)
+    Knob.Size = UDim2.fromOffset(20, 20)
     Knob.Position = UDim2.fromOffset(3, 3)
-    Knob.BackgroundColor3 = Color3.fromRGB(150, 150, 160)
+    Knob.BackgroundColor3 = Color3.fromRGB(180, 180, 190)
     Knob.Parent = Button
-    Corner(Knob, 9)
+    Corner(Knob, 10)
 
     local state = default or false
 
@@ -543,7 +544,7 @@ local function CreateToggle(parent, name, description, default, callback)
         local info = TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
         if state then
             TweenService:Create(Knob, info, {
-                Position = UDim2.fromOffset(21, 3),
+                Position = UDim2.fromOffset(25, 3),
                 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
             }):Play()
             TweenService:Create(Button, info, {
@@ -553,20 +554,25 @@ local function CreateToggle(parent, name, description, default, callback)
         else
             TweenService:Create(Knob, info, {
                 Position = UDim2.fromOffset(3, 3),
-                BackgroundColor3 = Color3.fromRGB(150, 150, 160),
+                BackgroundColor3 = Color3.fromRGB(180, 180, 190),
             }):Play()
             TweenService:Create(Button, info, {
-                BackgroundColor3 = Color3.fromRGB(32, 32, 42),
+                BackgroundColor3 = Color3.fromRGB(40, 40, 52),
             }):Play()
-            Button.UIStroke.Color = Color3.fromRGB(50, 50, 65)
+            Button.UIStroke.Color = Color3.fromRGB(70, 70, 90)
         end
     end
 
-    Button.MouseButton1Click:Connect(function()
+    local function flip()
         state = not state
         Update()
         callback(state)
-    end)
+    end
+
+    Button.MouseButton1Click:Connect(flip)
+    Button.Activated:Connect(flip)
+    Button.TouchTap:Connect(flip)
+
     Update()
 
     return Holder
@@ -941,7 +947,7 @@ do
     info.Size = UDim2.new(1, -20, 1, 0)
     info.Position = UDim2.fromOffset(10, 0)
     info.BackgroundTransparency = 1
-    info.Text = "Hood Rivals v3.3 • Delta\nMade for testing • Use responsibly"
+    info.Text = "Hood Rivals v3.4 • Delta\nMade for testing • Use responsibly"
     info.TextColor3 = Settings.UIColors.subtext
     info.TextSize = 10
     info.Font = Enum.Font.Gotham
@@ -1018,7 +1024,7 @@ CrosshairV.BackgroundColor3 = Settings.CrosshairColor
 CrosshairV.Parent = ScreenGui
 
 --==================================================
--- TARGET INFO PANEL (compact)
+-- TARGET INFO PANEL
 --==================================================
 
 local TargetPanel = Instance.new("Frame")
