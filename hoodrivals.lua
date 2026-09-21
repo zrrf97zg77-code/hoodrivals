@@ -1,5 +1,9 @@
---// HOOD RIVALS - MOBILE COMBAT UI
---// Put this LocalScript in StarterPlayer > StarterPlayerScripts
+--==================================================
+-- IVORY
+-- Hood Rivals - Mobile Combat UI
+-- LocalScript
+-- StarterPlayer > StarterPlayerScripts
+--==================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -14,8 +18,8 @@ local Camera = Workspace.CurrentCamera
 --==================================================
 
 local Settings = {
-    -- Combat
     AimbotEnabled = false,
+
     AimFOV = 150,
     AimMaxDistance = 1000,
     AimPart = "Head",
@@ -23,7 +27,6 @@ local Settings = {
     Triggerbot = false,
     TriggerDelay = 0.08,
 
-    -- Visuals
     ESP = true,
     ESPHealth = true,
     ESPDistance = true,
@@ -32,7 +35,6 @@ local Settings = {
     FOVCircle = true,
     Crosshair = true,
 
-    -- Safety / targeting
     TeamCheck = true,
     VisibleCheck = true,
 }
@@ -42,7 +44,7 @@ local Settings = {
 --==================================================
 
 local Gui = Instance.new("ScreenGui")
-Gui.Name = "HoodRivalsMobile"
+Gui.Name = "Ivory"
 Gui.ResetOnSpawn = false
 Gui.IgnoreGuiInset = true
 Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -51,25 +53,22 @@ Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 -- COLORS
 --==================================================
 
-local BG = Color3.fromRGB(17, 17, 20)
-local PANEL = Color3.fromRGB(23, 23, 27)
-local CARD = Color3.fromRGB(30, 30, 35)
-local CARD_HOVER = Color3.fromRGB(38, 38, 44)
-local WHITE = Color3.fromRGB(245, 245, 245)
-local MUTED = Color3.fromRGB(155, 155, 165)
-local GREEN = Color3.fromRGB(70, 220, 125)
-local RED = Color3.fromRGB(235, 75, 85)
-local ACCENT = Color3.fromRGB(125, 95, 255)
+local BG = Color3.fromRGB(16,16,19)
+local PANEL = Color3.fromRGB(22,22,26)
+local CARD = Color3.fromRGB(29,29,34)
+local WHITE = Color3.fromRGB(245,245,245)
+local MUTED = Color3.fromRGB(150,150,160)
+local GREEN = Color3.fromRGB(70,220,125)
+local ACCENT = Color3.fromRGB(125,95,255)
 
 --==================================================
--- HELPER FUNCTIONS
+-- HELPERS
 --==================================================
 
 local function Corner(obj, radius)
     local c = Instance.new("UICorner")
     c.CornerRadius = UDim.new(0, radius)
     c.Parent = obj
-    return c
 end
 
 local function Stroke(obj, color, thickness, transparency)
@@ -78,19 +77,18 @@ local function Stroke(obj, color, thickness, transparency)
     s.Thickness = thickness or 1
     s.Transparency = transparency or 0
     s.Parent = obj
-    return s
 end
 
-local function MakeLabel(parent, text, size, color)
-    local label = Instance.new("TextLabel")
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = color or WHITE
-    label.TextSize = size or 14
-    label.Font = Enum.Font.GothamMedium
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = parent
-    return label
+local function Label(parent, text, size, color)
+    local l = Instance.new("TextLabel")
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextColor3 = color or WHITE
+    l.TextSize = size or 13
+    l.Font = Enum.Font.GothamMedium
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.Parent = parent
+    return l
 end
 
 --==================================================
@@ -98,155 +96,155 @@ end
 --==================================================
 
 local Main = Instance.new("Frame")
-Main.Name = "MainWindow"
-Main.Size = UDim2.new(0, 340, 0, 420)
-Main.Position = UDim2.new(0, 25, 0.5, -210)
+Main.Name = "IvoryWindow"
+Main.Size = UDim2.new(0,280,0,350)
+Main.Position = UDim2.new(0,18,0.5,-175)
 Main.BackgroundColor3 = BG
-Main.BackgroundTransparency = 0.04
+Main.BackgroundTransparency = 0.03
 Main.Parent = Gui
 
-Corner(Main, 18)
-Stroke(Main, Color3.fromRGB(60, 60, 70), 1, 0.35)
+Corner(Main,16)
+Stroke(Main,Color3.fromRGB(65,65,75),1,0.35)
 
 --==================================================
 -- HEADER
 --==================================================
 
 local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 62)
+Header.Size = UDim2.new(1,0,0,52)
 Header.BackgroundTransparency = 1
 Header.Parent = Main
 
-local Title = MakeLabel(Header, "🔥  HOOD RIVALS", 19, WHITE)
-Title.Position = UDim2.new(0, 20, 0, 9)
-Title.Size = UDim2.new(1, -75, 0, 25)
+local Title = Label(Header,"🔥  IVORY",16,WHITE)
+Title.Position = UDim2.new(0,16,0,7)
+Title.Size = UDim2.new(1,-65,0,22)
 
-local Subtitle = MakeLabel(Header, "MOBILE CONTROL PANEL", 9, MUTED)
-Subtitle.Position = UDim2.new(0, 21, 0, 34)
-Subtitle.Size = UDim2.new(1, -80, 0, 16)
+local Subtitle = Label(Header,"MOBILE CONTROL PANEL",8,MUTED)
+Subtitle.Position = UDim2.new(0,17,0,29)
+Subtitle.Size = UDim2.new(1,-70,0,13)
 
--- Close/minimize
 local HideButton = Instance.new("TextButton")
-HideButton.Size = UDim2.new(0, 38, 0, 38)
-HideButton.Position = UDim2.new(1, -48, 0, 12)
+HideButton.Size = UDim2.new(0,34,0,34)
+HideButton.Position = UDim2.new(1,-44,0,9)
 HideButton.BackgroundColor3 = CARD
 HideButton.Text = "—"
 HideButton.TextColor3 = WHITE
-HideButton.TextSize = 20
+HideButton.TextSize = 18
 HideButton.Font = Enum.Font.GothamBold
 HideButton.Parent = Header
 
-Corner(HideButton, 12)
+Corner(HideButton,10)
 
 --==================================================
 -- TAB BAR
 --==================================================
 
 local TabBar = Instance.new("Frame")
-TabBar.Size = UDim2.new(1, -24, 0, 42)
-TabBar.Position = UDim2.new(0, 12, 0, 62)
+TabBar.Size = UDim2.new(1,-20,0,36)
+TabBar.Position = UDim2.new(0,10,0,52)
 TabBar.BackgroundColor3 = PANEL
 TabBar.Parent = Main
 
-Corner(TabBar, 12)
+Corner(TabBar,10)
 
 local TabLayout = Instance.new("UIListLayout")
 TabLayout.FillDirection = Enum.FillDirection.Horizontal
 TabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 TabLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-TabLayout.Padding = UDim.new(0, 5)
+TabLayout.Padding = UDim.new(0,3)
 TabLayout.Parent = TabBar
 
-local CombatTab = Instance.new("TextButton")
-local VisualTab = Instance.new("TextButton")
-local SettingsTab = Instance.new("TextButton")
-
-local function SetupTab(button, text)
-    button.Size = UDim2.new(0, 94, 0, 32)
+local function MakeTab(text)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0,82,0,28)
     button.BackgroundTransparency = 1
     button.Text = text
     button.TextColor3 = MUTED
-    button.TextSize = 11
+    button.TextSize = 9
     button.Font = Enum.Font.GothamBold
     button.AutoButtonColor = false
     button.Parent = TabBar
-    Corner(button, 9)
+
+    Corner(button,8)
+
+    return button
 end
 
-SetupTab(CombatTab, "🎯 COMBAT")
-SetupTab(VisualTab, "👁 VISUALS")
-SetupTab(SettingsTab, "⚙ SETTINGS")
+local CombatTab = MakeTab("🎯 COMBAT")
+local VisualTab = MakeTab("👁 VISUALS")
+local SettingsTab = MakeTab("⚙ SETTINGS")
 
 --==================================================
 -- CONTENT
 --==================================================
 
 local Content = Instance.new("ScrollingFrame")
-Content.Size = UDim2.new(1, -24, 1, -116)
-Content.Position = UDim2.new(0, 12, 0, 110)
+Content.Size = UDim2.new(1,-20,1,-96)
+Content.Position = UDim2.new(0,10,0,94)
 Content.BackgroundTransparency = 1
 Content.BorderSizePixel = 0
-Content.ScrollBarThickness = 3
+Content.ScrollBarThickness = 2
 Content.ScrollBarImageColor3 = ACCENT
-Content.CanvasSize = UDim2.new(0, 0, 0, 0)
+Content.CanvasSize = UDim2.new(0,0,0,0)
 Content.Parent = Main
 
 local Layout = Instance.new("UIListLayout")
-Layout.Padding = UDim.new(0, 8)
+Layout.Padding = UDim.new(0,6)
 Layout.Parent = Content
 
 local Padding = Instance.new("UIPadding")
-Padding.PaddingBottom = UDim.new(0, 10)
+Padding.PaddingBottom = UDim.new(0,8)
 Padding.Parent = Content
 
 --==================================================
--- TOGGLE CREATOR
+-- TOGGLE
 --==================================================
 
-local function CreateToggle(text, description, settingName)
+local function CreateToggle(text,description,settingName)
 
     local Card = Instance.new("TextButton")
-    Card.Size = UDim2.new(1, -4, 0, 58)
+    Card.Size = UDim2.new(1,-4,0,48)
     Card.BackgroundColor3 = CARD
     Card.Text = ""
     Card.AutoButtonColor = false
     Card.Parent = Content
 
-    Corner(Card, 13)
+    Corner(Card,11)
 
-    local Name = MakeLabel(Card, text, 13, WHITE)
-    Name.Position = UDim2.new(0, 14, 0, 8)
-    Name.Size = UDim2.new(1, -75, 0, 19)
+    local Name = Label(Card,text,11,WHITE)
+    Name.Position = UDim2.new(0,12,0,5)
+    Name.Size = UDim2.new(1,-70,0,17)
 
-    local Desc = MakeLabel(Card, description, 9, MUTED)
-    Desc.Position = UDim2.new(0, 14, 0, 30)
-    Desc.Size = UDim2.new(1, -75, 0, 16)
+    local Desc = Label(Card,description,8,MUTED)
+    Desc.Position = UDim2.new(0,12,0,25)
+    Desc.Size = UDim2.new(1,-70,0,13)
 
     local Toggle = Instance.new("Frame")
-    Toggle.Size = UDim2.new(0, 43, 0, 24)
-    Toggle.Position = UDim2.new(1, -57, 0.5, -12)
-    Toggle.BackgroundColor3 = Color3.fromRGB(55, 55, 60)
+    Toggle.Size = UDim2.new(0,38,0,21)
+    Toggle.Position = UDim2.new(1,-50,0.5,-10)
+    Toggle.BackgroundColor3 = Color3.fromRGB(55,55,60)
     Toggle.Parent = Card
 
-    Corner(Toggle, 20)
+    Corner(Toggle,20)
 
     local Knob = Instance.new("Frame")
-    Knob.Size = UDim2.new(0, 18, 0, 18)
-    Knob.Position = UDim2.new(0, 3, 0.5, -9)
-    Knob.BackgroundColor3 = Color3.fromRGB(190, 190, 195)
+    Knob.Size = UDim2.new(0,15,0,15)
+    Knob.Position = UDim2.new(0,3,0.5,-7)
+    Knob.BackgroundColor3 = Color3.fromRGB(190,190,195)
     Knob.Parent = Toggle
 
-    Corner(Knob, 20)
+    Corner(Knob,20)
 
     local function Update()
+
         if Settings[settingName] then
             Toggle.BackgroundColor3 = GREEN
-            Knob.Position = UDim2.new(1, -21, 0.5, -9)
+            Knob.Position = UDim2.new(1,-18,0.5,-7)
             Knob.BackgroundColor3 = WHITE
         else
-            Toggle.BackgroundColor3 = Color3.fromRGB(55, 55, 60)
-            Knob.Position = UDim2.new(0, 3, 0.5, -9)
-            Knob.BackgroundColor3 = Color3.fromRGB(190, 190, 195)
+            Toggle.BackgroundColor3 = Color3.fromRGB(55,55,60)
+            Knob.Position = UDim2.new(0,3,0.5,-7)
+            Knob.BackgroundColor3 = Color3.fromRGB(190,190,195)
         end
     end
 
@@ -264,64 +262,63 @@ end
 -- SLIDER
 --==================================================
 
-local function CreateSlider(text, settingName, minValue, maxValue)
+local function CreateSlider(text,settingName,minValue,maxValue)
 
     local Card = Instance.new("Frame")
-    Card.Size = UDim2.new(1, -4, 0, 65)
+    Card.Size = UDim2.new(1,-4,0,56)
     Card.BackgroundColor3 = CARD
     Card.Parent = Content
 
-    Corner(Card, 13)
+    Corner(Card,11)
 
-    local Name = MakeLabel(Card, text, 12, WHITE)
-    Name.Position = UDim2.new(0, 14, 0, 8)
-    Name.Size = UDim2.new(0.7, 0, 0, 18)
+    local Name = Label(Card,text,10,WHITE)
+    Name.Position = UDim2.new(0,12,0,6)
+    Name.Size = UDim2.new(.7,0,0,16)
 
-    local Value = MakeLabel(Card, tostring(Settings[settingName]), 11, ACCENT)
-    Value.Position = UDim2.new(1, -70, 0, 8)
-    Value.Size = UDim2.new(0, 55, 0, 18)
+    local Value = Label(Card,tostring(Settings[settingName]),9,ACCENT)
+    Value.Position = UDim2.new(1,-55,0,6)
+    Value.Size = UDim2.new(0,43,0,16)
     Value.TextXAlignment = Enum.TextXAlignment.Right
 
     local Bar = Instance.new("Frame")
-    Bar.Size = UDim2.new(1, -28, 0, 6)
-    Bar.Position = UDim2.new(0, 14, 0, 42)
-    Bar.BackgroundColor3 = Color3.fromRGB(55, 55, 62)
+    Bar.Size = UDim2.new(1,-24,0,5)
+    Bar.Position = UDim2.new(0,12,0,36)
+    Bar.BackgroundColor3 = Color3.fromRGB(55,55,62)
     Bar.Parent = Card
 
-    Corner(Bar, 10)
+    Corner(Bar,10)
 
     local Fill = Instance.new("Frame")
     Fill.BackgroundColor3 = ACCENT
     Fill.Size = UDim2.new(
-        (Settings[settingName] - minValue) / (maxValue - minValue),
-        0,
-        1,
-        0
+        (Settings[settingName]-minValue)/(maxValue-minValue),
+        0,1,0
     )
     Fill.Parent = Bar
 
-    Corner(Fill, 10)
+    Corner(Fill,10)
 
     local dragging = false
 
-    local function UpdateSlider(inputX)
+    local function UpdateSlider(x)
+
         local percent = math.clamp(
-            (inputX - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X,
-            0,
-            1
+            (x-Bar.AbsolutePosition.X)/Bar.AbsoluteSize.X,
+            0,1
         )
 
         local value = math.floor(
-            minValue + ((maxValue - minValue) * percent)
+            minValue+((maxValue-minValue)*percent)
         )
 
         Settings[settingName] = value
 
-        Fill.Size = UDim2.new(percent, 0, 1, 0)
+        Fill.Size = UDim2.new(percent,0,1,0)
         Value.Text = tostring(value)
     end
 
     Bar.InputBegan:Connect(function(input)
+
         if input.UserInputType == Enum.UserInputType.Touch
         or input.UserInputType == Enum.UserInputType.MouseButton1 then
 
@@ -331,53 +328,56 @@ local function CreateSlider(text, settingName, minValue, maxValue)
     end)
 
     UserInputService.InputChanged:Connect(function(input)
-        if dragging then
-            if input.UserInputType == Enum.UserInputType.Touch
-            or input.UserInputType == Enum.UserInputType.MouseMovement then
 
-                UpdateSlider(input.Position.X)
-            end
+        if not dragging then
+            return
+        end
+
+        if input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseMovement then
+
+            UpdateSlider(input.Position.X)
         end
     end)
 
     UserInputService.InputEnded:Connect(function(input)
+
         if input.UserInputType == Enum.UserInputType.Touch
         or input.UserInputType == Enum.UserInputType.MouseButton1 then
 
             dragging = false
         end
     end)
-
-    return Card
 end
 
 --==================================================
 -- DROPDOWN
 --==================================================
 
-local function CreateDropdown(text, settingName, options)
+local function CreateDropdown(text,settingName,options)
 
     local Card = Instance.new("TextButton")
-    Card.Size = UDim2.new(1, -4, 0, 54)
+    Card.Size = UDim2.new(1,-4,0,45)
     Card.BackgroundColor3 = CARD
     Card.Text = ""
     Card.AutoButtonColor = false
     Card.Parent = Content
 
-    Corner(Card, 13)
+    Corner(Card,11)
 
-    local Name = MakeLabel(Card, text, 12, WHITE)
-    Name.Position = UDim2.new(0, 14, 0, 9)
-    Name.Size = UDim2.new(0.55, 0, 0, 20)
+    local Name = Label(Card,text,10,WHITE)
+    Name.Position = UDim2.new(0,12,0,7)
+    Name.Size = UDim2.new(.55,0,0,20)
 
-    local Current = MakeLabel(Card, Settings[settingName], 11, ACCENT)
-    Current.Position = UDim2.new(0.55, 0, 0, 9)
-    Current.Size = UDim2.new(0.35, 0, 0, 20)
+    local Current = Label(Card,Settings[settingName],9,ACCENT)
+    Current.Position = UDim2.new(.55,0,0,7)
+    Current.Size = UDim2.new(.35,0,0,20)
     Current.TextXAlignment = Enum.TextXAlignment.Right
 
-    local Index = table.find(options, Settings[settingName]) or 1
+    local Index = table.find(options,Settings[settingName]) or 1
 
     Card.Activated:Connect(function()
+
         Index += 1
 
         if Index > #options then
@@ -387,21 +387,25 @@ local function CreateDropdown(text, settingName, options)
         Settings[settingName] = options[Index]
         Current.Text = options[Index]
     end)
-
-    return Card
 end
 
 --==================================================
--- BUILD COMBAT TAB
+-- CONTENT CLEAR
 --==================================================
 
 local function ClearContent()
-    for _, child in ipairs(Content:GetChildren()) do
+
+    for _,child in ipairs(Content:GetChildren()) do
+
         if child:IsA("GuiObject") then
             child:Destroy()
         end
     end
 end
+
+--==================================================
+-- COMBAT TAB
+--==================================================
 
 local function BuildCombat()
 
@@ -409,7 +413,7 @@ local function BuildCombat()
 
     CreateToggle(
         "Aimbot",
-        "Instantly lock onto the selected target",
+        "Instant target lock",
         "AimbotEnabled"
     )
 
@@ -423,7 +427,7 @@ local function BuildCombat()
     CreateDropdown(
         "Aim Part",
         "AimPart",
-        {"Head", "UpperTorso", "HumanoidRootPart"}
+        {"Head","UpperTorso","HumanoidRootPart"}
     )
 
     CreateSlider(
@@ -435,7 +439,7 @@ local function BuildCombat()
 
     CreateToggle(
         "Triggerbot",
-        "Fire when the crosshair is over an enemy",
+        "Fire when crosshair is on target",
         "Triggerbot"
     )
 
@@ -448,7 +452,7 @@ local function BuildCombat()
 end
 
 --==================================================
--- BUILD VISUALS TAB
+-- VISUALS TAB
 --==================================================
 
 local function BuildVisuals()
@@ -457,43 +461,43 @@ local function BuildVisuals()
 
     CreateToggle(
         "ESP",
-        "Show enemy information",
+        "Player information",
         "ESP"
     )
 
     CreateToggle(
         "Health",
-        "Display player health",
+        "Show player health",
         "ESPHealth"
     )
 
     CreateToggle(
         "Distance",
-        "Display player distance",
+        "Show player distance",
         "ESPDistance"
     )
 
     CreateToggle(
         "Tracers",
-        "Draw lines toward players",
+        "Draw player lines",
         "ESPTracers"
     )
 
     CreateToggle(
         "FOV Circle",
-        "Show your current aim radius",
+        "Show aim radius",
         "FOVCircle"
     )
 
     CreateToggle(
         "Crosshair",
-        "Show the center crosshair",
+        "Center crosshair",
         "Crosshair"
     )
 end
 
 --==================================================
--- BUILD SETTINGS TAB
+-- SETTINGS TAB
 --==================================================
 
 local function BuildSettings()
@@ -502,22 +506,23 @@ local function BuildSettings()
 
     CreateToggle(
         "Team Check",
-        "Ignore players on your team",
+        "Ignore teammates",
         "TeamCheck"
     )
 
     CreateToggle(
         "Visible Only",
-        "Ignore targets behind walls",
+        "Ignore players behind walls",
         "VisibleCheck"
     )
 end
 
 --==================================================
--- TAB LOGIC
+-- TAB SELECTION
 --==================================================
 
 local function SelectTab(tab)
+
     CombatTab.BackgroundTransparency = 1
     VisualTab.BackgroundTransparency = 1
     SettingsTab.BackgroundTransparency = 1
@@ -527,26 +532,37 @@ local function SelectTab(tab)
     SettingsTab.TextColor3 = MUTED
 
     if tab == "Combat" then
+
         CombatTab.BackgroundColor3 = ACCENT
         CombatTab.BackgroundTransparency = 0
         CombatTab.TextColor3 = WHITE
+
         BuildCombat()
 
     elseif tab == "Visuals" then
+
         VisualTab.BackgroundColor3 = ACCENT
         VisualTab.BackgroundTransparency = 0
         VisualTab.TextColor3 = WHITE
+
         BuildVisuals()
 
     elseif tab == "Settings" then
+
         SettingsTab.BackgroundColor3 = ACCENT
         SettingsTab.BackgroundTransparency = 0
         SettingsTab.TextColor3 = WHITE
+
         BuildSettings()
     end
 
     task.wait()
-    Content.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y + 15)
+
+    Content.CanvasSize = UDim2.new(
+        0,0,
+        0,
+        Layout.AbsoluteContentSize.Y + 10
+    )
 end
 
 CombatTab.Activated:Connect(function()
@@ -564,36 +580,38 @@ end)
 SelectTab("Combat")
 
 --==================================================
--- MENU TOGGLE BUTTON
+-- HIDE / SHOW IVORY
 --==================================================
 
 local MenuButton = Instance.new("TextButton")
-MenuButton.Name = "MenuButton"
-MenuButton.Size = UDim2.new(0, 48, 0, 48)
-MenuButton.Position = UDim2.new(0, 18, 0, 90)
+MenuButton.Name = "IvoryOpen"
+MenuButton.Size = UDim2.new(0,44,0,44)
+MenuButton.Position = UDim2.new(0,16,0,85)
 MenuButton.BackgroundColor3 = BG
 MenuButton.Text = "🔥"
-MenuButton.TextSize = 21
+MenuButton.TextSize = 19
 MenuButton.Font = Enum.Font.GothamBold
 MenuButton.TextColor3 = WHITE
 MenuButton.Visible = false
 MenuButton.Parent = Gui
 
-Corner(MenuButton, 15)
-Stroke(MenuButton, Color3.fromRGB(70, 70, 80), 1, 0.3)
+Corner(MenuButton,13)
+Stroke(MenuButton,Color3.fromRGB(70,70,80),1,.3)
 
 HideButton.Activated:Connect(function()
+
     Main.Visible = false
     MenuButton.Visible = true
 end)
 
 MenuButton.Activated:Connect(function()
+
     Main.Visible = true
     MenuButton.Visible = false
 end)
 
 --==================================================
--- DRAGGABLE MOBILE WINDOW
+-- DRAGGING
 --==================================================
 
 local dragging = false
@@ -620,13 +638,13 @@ UserInputService.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch
     or input.UserInputType == Enum.UserInputType.MouseMovement then
 
-        local delta = input.Position - dragStart
+        local delta = input.Position-dragStart
 
         Main.Position = UDim2.new(
             startPosition.X.Scale,
-            startPosition.X.Offset + delta.X,
+            startPosition.X.Offset+delta.X,
             startPosition.Y.Scale,
-            startPosition.Y.Offset + delta.Y
+            startPosition.Y.Offset+delta.Y
         )
     end
 end)
@@ -645,53 +663,70 @@ end)
 --==================================================
 
 local Crosshair = Instance.new("Frame")
-Crosshair.Name = "Crosshair"
-Crosshair.Size = UDim2.new(0, 30, 0, 30)
-Crosshair.AnchorPoint = Vector2.new(0.5, 0.5)
-Crosshair.Position = UDim2.new(0.5, 0, 0.5, 0)
+Crosshair.Name = "IvoryCrosshair"
+Crosshair.Size = UDim2.new(0,30,0,30)
+Crosshair.AnchorPoint = Vector2.new(.5,.5)
+Crosshair.Position = UDim2.new(.5,0,.5,0)
 Crosshair.BackgroundTransparency = 1
 Crosshair.Parent = Gui
 
-local function CrossBar(size, position)
+local function CrossBar(size,position)
+
     local bar = Instance.new("Frame")
     bar.Size = size
     bar.Position = position
     bar.BackgroundColor3 = WHITE
     bar.BorderSizePixel = 0
     bar.Parent = Crosshair
-    Corner(bar, 2)
+
+    Corner(bar,2)
 end
 
-CrossBar(UDim2.new(0, 3, 0, 10), UDim2.new(0.5, -1, 0, 0))
-CrossBar(UDim2.new(0, 3, 0, 10), UDim2.new(0.5, -1, 1, -10))
-CrossBar(UDim2.new(0, 10, 0, 3), UDim2.new(0, 0, 0.5, -1))
-CrossBar(UDim2.new(0, 10, 0, 3), UDim2.new(1, -10, 0.5, -1))
+CrossBar(
+    UDim2.new(0,3,0,9),
+    UDim2.new(.5,-1,0,0)
+)
+
+CrossBar(
+    UDim2.new(0,3,0,9),
+    UDim2.new(.5,-1,1,-9)
+)
+
+CrossBar(
+    UDim2.new(0,9,0,3),
+    UDim2.new(0,0,.5,-1)
+)
+
+CrossBar(
+    UDim2.new(0,9,0,3),
+    UDim2.new(1,-9,.5,-1)
+)
 
 local Dot = Instance.new("Frame")
-Dot.Size = UDim2.new(0, 4, 0, 4)
-Dot.Position = UDim2.new(0.5, -2, 0.5, -2)
+Dot.Size = UDim2.new(0,4,0,4)
+Dot.Position = UDim2.new(.5,-2,.5,-2)
 Dot.BackgroundColor3 = WHITE
 Dot.BorderSizePixel = 0
 Dot.Parent = Crosshair
 
-Corner(Dot, 5)
+Corner(Dot,5)
 
 --==================================================
 -- FOV CIRCLE
 --==================================================
 
 local FOVCircle = Instance.new("Frame")
-FOVCircle.Name = "FOVCircle"
-FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+FOVCircle.Name = "IvoryFOV"
+FOVCircle.AnchorPoint = Vector2.new(.5,.5)
+FOVCircle.Position = UDim2.new(.5,0,.5,0)
 FOVCircle.BackgroundTransparency = 1
 FOVCircle.Parent = Gui
 
-Corner(FOVCircle, 999)
-Stroke(FOVCircle, ACCENT, 2, 0.25)
+Corner(FOVCircle,999)
+Stroke(FOVCircle,ACCENT,2,.25)
 
 --==================================================
--- TARGETING
+-- TARGET CHECK
 --==================================================
 
 local function IsEnemy(player)
@@ -717,12 +752,8 @@ local function IsVisible(part)
         return true
     end
 
-    if not part then
-        return false
-    end
-
     local origin = Camera.CFrame.Position
-    local direction = part.Position - origin
+    local direction = part.Position-origin
 
     local Params = RaycastParams.new()
     Params.FilterType = Enum.RaycastFilterType.Exclude
@@ -745,73 +776,82 @@ local function IsVisible(part)
     return Result.Instance:IsDescendantOf(part.Parent)
 end
 
+--==================================================
+-- GET TARGET
+--==================================================
+
 local function GetTarget()
 
-    local bestTarget = nil
-    local bestDistance = Settings.AimFOV
+    local BestTarget = nil
+    local BestDistance = Settings.AimFOV
 
-    local viewport = Camera.ViewportSize
-    local center = Vector2.new(
-        viewport.X / 2,
-        viewport.Y / 2
+    local Viewport = Camera.ViewportSize
+
+    local Center = Vector2.new(
+        Viewport.X/2,
+        Viewport.Y/2
     )
 
-    for _, player in ipairs(Players:GetPlayers()) do
+    for _,player in ipairs(Players:GetPlayers()) do
 
         if not IsEnemy(player) then
             continue
         end
 
-        local character = player.Character
+        local Character = player.Character
 
-        if not character then
+        if not Character then
             continue
         end
 
-        local humanoid =
-            character:FindFirstChildOfClass("Humanoid")
+        local Humanoid =
+            Character:FindFirstChildOfClass("Humanoid")
 
-        if not humanoid or humanoid.Health <= 0 then
+        if not Humanoid or Humanoid.Health <= 0 then
             continue
         end
 
-        local part = character:FindFirstChild(Settings.AimPart)
+        local Part =
+            Character:FindFirstChild(Settings.AimPart)
 
-        if not part then
+        if not Part then
             continue
         end
 
-        local distance3D =
-            (Camera.CFrame.Position - part.Position).Magnitude
+        local Distance3D =
+            (Camera.CFrame.Position-Part.Position).Magnitude
 
-        if distance3D > Settings.AimMaxDistance then
+        if Distance3D > Settings.AimMaxDistance then
             continue
         end
 
-        if not IsVisible(part) then
+        if not IsVisible(Part) then
             continue
         end
 
-        local screenPosition, onScreen =
-            Camera:WorldToViewportPoint(part.Position)
+        local ScreenPosition,OnScreen =
+            Camera:WorldToViewportPoint(Part.Position)
 
-        if not onScreen then
+        if not OnScreen then
             continue
         end
 
-        local distance2D =
-            (Vector2.new(
-                screenPosition.X,
-                screenPosition.Y
-            ) - center).Magnitude
+        local Distance2D =
+            (
+                Vector2.new(
+                    ScreenPosition.X,
+                    ScreenPosition.Y
+                )-Center
+            ).Magnitude
 
-        if distance2D <= bestDistance then
-            bestDistance = distance2D
-            bestTarget = part
+        if Distance2D <= BestDistance then
+
+            BestDistance = Distance2D
+            BestTarget = Part
         end
     end
 
-    return bestTarget
+    return BestTarget
 end
 
 --==================================================
@@ -820,23 +860,21 @@ end
 
 local function RunAimbot()
 
-    -- IMPORTANT:
-    -- No separate mobile AIM button.
-    -- This is controlled ONLY by Settings.AimbotEnabled.
+    -- Aimbot is controlled ONLY by the Ivory toggle.
 
     if not Settings.AimbotEnabled then
         return
     end
 
-    local target = GetTarget()
+    local Target = GetTarget()
 
-    if not target then
+    if not Target then
         return
     end
 
     Camera.CFrame = CFrame.lookAt(
         Camera.CFrame.Position,
-        target.Position
+        Target.Position
     )
 end
 
@@ -848,29 +886,19 @@ local LastTrigger = 0
 
 local function TriggerShot()
 
-    -- CHANGE THIS TO YOUR GAME'S ACTUAL WEAPON SYSTEM.
-    --
+    -- Connect this to your own weapon system.
     -- Example:
-    -- local WeaponSystem = LocalPlayer:FindFirstChild("WeaponSystem")
-    -- local Fire = WeaponSystem and WeaponSystem:FindFirstChild("Fire")
+    --
+    -- local WeaponSystem =
+    --     LocalPlayer:FindFirstChild("WeaponSystem")
+    --
+    -- local Fire =
+    --     WeaponSystem and WeaponSystem:FindFirstChild("Fire")
     --
     -- if Fire and Fire:IsA("RemoteEvent") then
     --     Fire:FireServer()
     -- end
 
-    local WeaponSystem =
-        LocalPlayer:FindFirstChild("WeaponSystem")
-
-    if not WeaponSystem then
-        return
-    end
-
-    local Fire =
-        WeaponSystem:FindFirstChild("Fire")
-
-    if Fire and Fire:IsA("RemoteEvent") then
-        Fire:FireServer()
-    end
 end
 
 local function TriggerCheck()
@@ -879,17 +907,17 @@ local function TriggerCheck()
         return
     end
 
-    local viewport = Camera.ViewportSize
+    local Viewport = Camera.ViewportSize
 
-    local center = Vector2.new(
-        viewport.X / 2,
-        viewport.Y / 2
+    local Center = Vector2.new(
+        Viewport.X/2,
+        Viewport.Y/2
     )
 
-    local ray =
+    local Ray =
         Camera:ViewportPointToRay(
-            center.X,
-            center.Y
+            Center.X,
+            Center.Y
         )
 
     local Params = RaycastParams.new()
@@ -900,8 +928,8 @@ local function TriggerCheck()
     }
 
     local Result = Workspace:Raycast(
-        ray.Origin,
-        ray.Direction * Settings.AimMaxDistance,
+        Ray.Origin,
+        Ray.Direction*Settings.AimMaxDistance,
         Params
     )
 
@@ -934,7 +962,7 @@ local function TriggerCheck()
         return
     end
 
-    if os.clock() - LastTrigger < Settings.TriggerDelay then
+    if os.clock()-LastTrigger < Settings.TriggerDelay then
         return
     end
 
@@ -951,16 +979,18 @@ local ESPObjects = {}
 
 local function RemoveESP(player)
 
-    if ESPObjects[player] then
-
-        for _, object in pairs(ESPObjects[player]) do
-            if object and object.Parent then
-                object:Destroy()
-            end
-        end
-
-        ESPObjects[player] = nil
+    if not ESPObjects[player] then
+        return
     end
+
+    for _,object in ipairs(ESPObjects[player]) do
+
+        if object and object.Parent then
+            object:Destroy()
+        end
+    end
+
+    ESPObjects[player] = nil
 end
 
 local function CreateESP(player)
@@ -971,61 +1001,61 @@ local function CreateESP(player)
 
     RemoveESP(player)
 
-    local character = player.Character
+    local Character = player.Character
 
-    if not character then
+    if not Character then
         return
     end
 
-    local head = character:FindFirstChild("Head")
+    local Head = Character:FindFirstChild("Head")
 
-    if not head then
+    if not Head then
         return
     end
 
-    local objects = {}
+    local Objects = {}
 
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "HR_ESP"
-    highlight.Adornee = character
-    highlight.FillTransparency = 0.85
-    highlight.OutlineTransparency = 0
-    highlight.OutlineColor = Color3.fromRGB(255, 80, 80)
-    highlight.Parent = character
+    local Highlight = Instance.new("Highlight")
+    Highlight.Name = "IvoryESP"
+    Highlight.Adornee = Character
+    Highlight.FillTransparency = .85
+    Highlight.OutlineTransparency = 0
+    Highlight.OutlineColor = Color3.fromRGB(255,80,80)
+    Highlight.Parent = Character
 
-    table.insert(objects, highlight)
+    table.insert(Objects,Highlight)
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "HR_Info"
-    billboard.Adornee = head
-    billboard.Size = UDim2.new(0, 170, 0, 65)
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
-    billboard.AlwaysOnTop = true
-    billboard.Parent = head
+    local Billboard = Instance.new("BillboardGui")
+    Billboard.Name = "IvoryInfo"
+    Billboard.Adornee = Head
+    Billboard.Size = UDim2.new(0,160,0,55)
+    Billboard.StudsOffset = Vector3.new(0,3,0)
+    Billboard.AlwaysOnTop = true
+    Billboard.Parent = Head
 
-    table.insert(objects, billboard)
+    table.insert(Objects,Billboard)
 
-    local info = Instance.new("TextLabel")
-    info.Size = UDim2.new(1, 0, 1, 0)
-    info.BackgroundTransparency = 1
-    info.TextColor3 = WHITE
-    info.TextStrokeTransparency = 0
-    info.TextSize = 12
-    info.Font = Enum.Font.GothamBold
-    info.TextWrapped = true
-    info.Parent = billboard
+    local Info = Instance.new("TextLabel")
+    Info.Size = UDim2.new(1,0,1,0)
+    Info.BackgroundTransparency = 1
+    Info.TextColor3 = WHITE
+    Info.TextStrokeTransparency = 0
+    Info.TextSize = 11
+    Info.Font = Enum.Font.GothamBold
+    Info.TextWrapped = true
+    Info.Parent = Billboard
 
-    table.insert(objects, info)
+    table.insert(Objects,Info)
 
     ESPObjects[player] = {
-        Objects = objects,
-        Info = info,
+        Objects = Objects,
+        Info = Info
     }
 end
 
 local function UpdateESP()
 
-    for _, player in ipairs(Players:GetPlayers()) do
+    for _,player in ipairs(Players:GetPlayers()) do
 
         if player == LocalPlayer then
             continue
@@ -1041,20 +1071,20 @@ local function UpdateESP()
             continue
         end
 
-        local character = player.Character
+        local Character = player.Character
 
-        if not character then
+        if not Character then
             RemoveESP(player)
             continue
         end
 
-        local humanoid =
-            character:FindFirstChildOfClass("Humanoid")
+        local Humanoid =
+            Character:FindFirstChildOfClass("Humanoid")
 
-        local head =
-            character:FindFirstChild("Head")
+        local Head =
+            Character:FindFirstChild("Head")
 
-        if not humanoid or not head then
+        if not Humanoid or not Head then
             continue
         end
 
@@ -1062,39 +1092,40 @@ local function UpdateESP()
             CreateESP(player)
         end
 
-        local data = ESPObjects[player]
+        local Data = ESPObjects[player]
 
-        if data and data.Info then
+        if Data and Data.Info then
 
-            local text = player.DisplayName
+            local Text = player.DisplayName
 
             if Settings.ESPHealth then
-                text ..= "\nHP: " .. math.floor(humanoid.Health)
+                Text ..= "\nHP: "..math.floor(Humanoid.Health)
             end
 
             if Settings.ESPDistance then
 
-                local distance =
+                local Distance =
                     math.floor(
-                        (Camera.CFrame.Position - head.Position).Magnitude
+                        (Camera.CFrame.Position-Head.Position).Magnitude
                     )
 
-                text ..= "\n" .. distance .. " studs"
+                Text ..= "\n"..Distance.." studs"
             end
 
-            data.Info.Text = text
+            Data.Info.Text = Text
         end
     end
 end
 
 --==================================================
--- PLAYER CONNECTIONS
+-- PLAYERS
 --==================================================
 
 local function SetupPlayer(player)
 
     player.CharacterAdded:Connect(function()
-        task.wait(0.5)
+
+        task.wait(.5)
 
         if Settings.ESP then
             CreateESP(player)
@@ -1102,7 +1133,7 @@ local function SetupPlayer(player)
     end)
 end
 
-for _, player in ipairs(Players:GetPlayers()) do
+for _,player in ipairs(Players:GetPlayers()) do
     SetupPlayer(player)
 end
 
@@ -1120,14 +1151,12 @@ local ESPTimer = 0
 
 RunService.RenderStepped:Connect(function()
 
-    -- FOV circle
-    local diameter = Settings.AimFOV * 2
+    -- FOV
+    local Diameter = Settings.AimFOV*2
 
     FOVCircle.Size = UDim2.new(
-        0,
-        diameter,
-        0,
-        diameter
+        0,Diameter,
+        0,Diameter
     )
 
     FOVCircle.Visible = Settings.FOVCircle
