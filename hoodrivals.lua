@@ -1,824 +1,438 @@
---========================================================--
--- 🔥 DEVELOPER SHOOTING TOOLKIT V3
--- DELTA EXECUTOR EDITION
---========================================================--
+--========================================================
+-- HOOD RIVALS - MOBILE COMBAT DEBUG SYSTEM
+-- Delta Executor Version
+--========================================================
 
--- Clean previous run
-if getgenv and getgenv().DSTv3 and getgenv().DSTv3.Destroy then
-    pcall(getgenv().DSTv3.Destroy)
+--[[
+    INSTRUCTIONS:
+    1. Copy this entire script
+    2. Open Delta Executor
+    3. Paste and Execute
+    
+    Re-execution safe: will destroy old GUI and rebuild.
+--]]
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
 end
+
+--========================================================
+-- CLEANUP OLD INSTANCE (re-execution safe)
+--========================================================
+
+if _G.HoodRivalsCleanup then
+    pcall(_G.HoodRivalsCleanup)
+end
+
+--========================================================
+-- SERVICES
+--========================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
-while not LocalPlayer do
-    task.wait(0.1)
-    LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    return
 end
 
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Camera = Workspace.CurrentCamera
 
---========================================================--
--- CONFIG
---========================================================--
+--========================================================
+-- GUI PARENT (Delta-friendly)
+--========================================================
 
-local Config = {
-    AimEnabled = true,
-    ShowFOV = true,
-    FOV = 180,
-    AimStrength = 0.35,
-    LockBreakAngle = 30,
-    TargetPart = "Head",
+local function getGuiParent()
+    -- Prefer gethui (Delta supports it) for better stealth + persistence
+    if gethui then
+        local ok, hui = pcall(gethui)
+        if ok and hui then
+            return hui
+        end
+    end
 
-    ESPEnabled = true,
-    Boxes = true,
-    Names = true,
-    HealthBars = true,
-    Distances = true,
-    HeadMarkers = true,
-    Tracers = true,
+    -- Fallback to CoreGui (Delta Mobile often supports this)
+    if game:GetService("CoreGui") then
+        local ok, cg = pcall(function()
+            return game:GetService("CoreGui")
+        end)
+        if ok and cg then
+            return cg
+        end
+    end
+
+    -- Last resort
+    return LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local GuiParent = getGuiParent()
+
+--========================================================
+-- SETTINGS
+--========================================================
+
+local Settings = {
+    ESP = true,
+    ESPHealth = true,
+    ESPDistance = true,
+
+    AimbotEnabled = false,
+    AimFOV = 150,
+    AimMaxDistance = 1000,
+    AimPart = "Head",
 
     TeamCheck = true,
-    WallCheck = false,
+    VisibleCheck = true,
 
-    CrosshairEnabled = true,
+    Triggerbot = false,
+    TriggerDelay = 0.08,
+
+    Crosshair = true,
+    FOVCircle = true,
+
+    HoldToAim = false,
 }
 
---========================================================--
--- THEME
---========================================================--
+--========================================================
+-- GUI
+--========================================================
 
-local Theme = {
-    Background = Color3.fromRGB(8, 9, 13),
-    Panel = Color3.fromRGB(13, 15, 21),
-    Panel2 = Color3.fromRGB(20, 22, 30),
-
-    Accent = Color3.fromRGB(255, 75, 35),
-    AccentLight = Color3.fromRGB(255, 150, 65),
-
-    Text = Color3.fromRGB(242, 244, 248),
-    SubText = Color3.fromRGB(145, 150, 165),
-
-    Stroke = Color3.fromRGB(42, 45, 55),
-
-    Good = Color3.fromRGB(70, 220, 125),
-    Bad = Color3.fromRGB(235, 70, 80),
-    Warn = Color3.fromRGB(255, 210, 70),
-}
-
---========================================================--
--- STATE
---========================================================--
-
-local State = { Gui = nil, Connections = {} }
-function State.Track(c) table.insert(State.Connections, c); return c end
-function State.Destroy()
-    for _, c in ipairs(State.Connections) do
-        pcall(function() c:Disconnect() end)
-    end
-    State.Connections = {}
-    if State.Gui then
-        pcall(function() State.Gui:Destroy() end)
-        State.Gui = nil
-    end
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "HoodRivalsMobile_" .. tostring(math.random(1000,9999))
+Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+if syn and syn.protect_gui then
+    syn.protect_gui(Gui)
 end
-if getgenv then getgenv().DSTv3 = State end
+Gui.Parent = GuiParent
 
---========================================================--
--- CLEAN PREVIOUS VERSION
---========================================================--
+--========================================================
+-- MENU
+--========================================================
 
-local old = PlayerGui:FindFirstChild("DeveloperShootingToolkit")
-if old then old:Destroy() end
+local Main = Instance.new("Frame")
+Main.Size = UDim2.fromOffset(225, 310)
+Main.Position = UDim2.new(0, 12, 0.5, -155)
+Main.BackgroundColor3 = Color3.fromRGB(18,18,18)
+Main.BackgroundTransparency = 0.08
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Parent = Gui
 
---========================================================--
--- HELPERS
---========================================================--
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0,12)
+MainCorner.Parent = Main
 
-local function New(className, properties)
-    local object = Instance.new(className)
-    for property, value in pairs(properties) do
-        object[property] = value
-    end
-    return object
+local Padding = Instance.new("UIPadding")
+Padding.PaddingTop = UDim.new(0,8)
+Padding.PaddingLeft = UDim.new(0,8)
+Padding.PaddingRight = UDim.new(0,8)
+Padding.PaddingBottom = UDim.new(0,8)
+Padding.Parent = Main
+
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0,6)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
+Layout.Parent = Main
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.fromOffset(205,35)
+Title.BackgroundTransparency = 1
+Title.Text = "🔥 HOOD RIVALS"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.TextSize = 18
+Title.Font = Enum.Font.GothamBold
+Title.LayoutOrder = 1
+Title.Parent = Main
+
+-- Drag support (mobile-friendly)
+do
+    local dragging, dragStart, startPos = false, nil, nil
+
+    Title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Main.Position
+        end
+    end)
+
+    Title.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            Main.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
 end
 
-local function Corner(parent, radius)
-    return New("UICorner", {
-        CornerRadius = UDim.new(0, radius),
-        Parent = parent,
-    })
+local function createButton(text, order, callback)
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.fromOffset(200,37)
+    Button.BackgroundColor3 = Color3.fromRGB(38,38,38)
+    Button.TextColor3 = Color3.new(1,1,1)
+    Button.TextSize = 13
+    Button.Font = Enum.Font.GothamBold
+    Button.Text = text
+    Button.AutoButtonColor = true
+    Button.LayoutOrder = order
+    Button.Parent = Main
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0,8)
+    Corner.Parent = Button
+
+    Button.Activated:Connect(callback)
+    return Button
 end
 
-local function Stroke(parent, color, thickness, transparency)
-    return New("UIStroke", {
-        Color = color,
-        Thickness = thickness or 1,
-        Transparency = transparency or 0,
-        Parent = parent,
-    })
+--========================================================
+-- CUSTOM CROSSHAIR
+--========================================================
+
+local Crosshair = Instance.new("Frame")
+Crosshair.Name = "CustomCrosshair"
+Crosshair.AnchorPoint = Vector2.new(0.5,0.5)
+Crosshair.Position = UDim2.fromScale(0.5,0.5)
+Crosshair.Size = UDim2.fromOffset(34,34)
+Crosshair.BackgroundTransparency = 1
+Crosshair.Visible = Settings.Crosshair
+Crosshair.Parent = Gui
+
+local function crosshairLine(size, position)
+    local Line = Instance.new("Frame")
+    Line.Size = size
+    Line.Position = position
+    Line.AnchorPoint = Vector2.new(0.5,0.5)
+    Line.BackgroundColor3 = Color3.new(1,1,1)
+    Line.BorderSizePixel = 0
+    Line.Parent = Crosshair
+
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Thickness = 1
+    Stroke.Color = Color3.new(0,0,0)
+    Stroke.Parent = Line
 end
 
-local function Tween(object, properties, duration)
-    local tween = TweenService:Create(
-        object,
-        TweenInfo.new(
-            duration or 0.2,
-            Enum.EasingStyle.Quart,
-            Enum.EasingDirection.Out
-        ),
-        properties
-    )
-    tween:Play()
-    return tween
-end
+crosshairLine(UDim2.fromOffset(12,2), UDim2.new(0.5,0,0,3))
+crosshairLine(UDim2.fromOffset(12,2), UDim2.new(0.5,0,1,-3))
+crosshairLine(UDim2.fromOffset(2,12), UDim2.new(0,3,0.5,0))
+crosshairLine(UDim2.fromOffset(2,12), UDim2.new(1,-3,0.5,0))
 
---========================================================--
--- SCREEN GUI
---========================================================--
+local Dot = Instance.new("Frame")
+Dot.Size = UDim2.fromOffset(4,4)
+Dot.Position = UDim2.fromScale(0.5,0.5)
+Dot.AnchorPoint = Vector2.new(0.5,0.5)
+Dot.BackgroundColor3 = Color3.new(1,1,1)
+Dot.BorderSizePixel = 0
+Dot.Parent = Crosshair
 
-local ScreenGui = New("ScreenGui", {
-    Name = "DeveloperShootingToolkit",
-    ResetOnSpawn = false,
-    IgnoreGuiInset = true,
-    DisplayOrder = 100,
-    Parent = PlayerGui,
-})
-State.Gui = ScreenGui
+local DotCorner = Instance.new("UICorner")
+DotCorner.CornerRadius = UDim.new(1,0)
+DotCorner.Parent = Dot
 
---========================================================--
+--========================================================
 -- FOV CIRCLE
---========================================================--
+--========================================================
 
-local FOVCircle = New("Frame", {
-    Name = "FOVCircle",
-    Size = UDim2.fromOffset(Config.FOV * 2, Config.FOV * 2),
-    AnchorPoint = Vector2.new(0.5, 0.5),
-    BackgroundTransparency = 1,
-    Visible = Config.AimEnabled and Config.ShowFOV,
-    ZIndex = 10,
-    Parent = ScreenGui,
-})
+local FOV = Instance.new("Frame")
+FOV.Name = "FOV"
+FOV.AnchorPoint = Vector2.new(0.5,0.5)
+FOV.Position = UDim2.fromScale(0.5,0.5)
+FOV.Size = UDim2.fromOffset(Settings.AimFOV * 2, Settings.AimFOV * 2)
+FOV.BackgroundTransparency = 1
+FOV.BorderSizePixel = 0
+FOV.Visible = Settings.FOVCircle
+FOV.Parent = Gui
 
-Corner(FOVCircle, 999)
-Stroke(FOVCircle, Theme.Accent, 2, 0.15)
+local FOVCorner = Instance.new("UICorner")
+FOVCorner.CornerRadius = UDim.new(1,0)
+FOVCorner.Parent = FOV
 
---========================================================--
--- CROSSHAIR
---========================================================--
+local FOVStroke = Instance.new("UIStroke")
+FOVStroke.Thickness = 2
+FOVStroke.Transparency = 0.15
+FOVStroke.Parent = FOV
 
-local Crosshair = New("Frame", {
-    Name = "Crosshair",
-    Size = UDim2.fromOffset(2, 2),
-    AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.fromScale(0.5, 0.5),
-    BackgroundTransparency = 1,
-    Visible = Config.CrosshairEnabled,
-    ZIndex = 20,
-    Parent = ScreenGui,
-})
+--========================================================
+-- ESP
+--========================================================
 
-local function CrosshairPart(size, position)
-    local part = New("Frame", {
-        Size = size,
-        Position = position,
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = Theme.Text,
-        BorderSizePixel = 0,
-        ZIndex = 21,
-        Parent = Crosshair,
-    })
-    Corner(part, 4)
-    return part
+local ESPObjects = {}
+
+local function removeESP(Player)
+    local Data = ESPObjects[Player]
+    if not Data then return end
+
+    if Data.Highlight then Data.Highlight:Destroy() end
+    if Data.Billboard then Data.Billboard:Destroy() end
+
+    ESPObjects[Player] = nil
 end
 
-CrosshairPart(UDim2.fromOffset(2, 9), UDim2.fromOffset(0, -7))
-CrosshairPart(UDim2.fromOffset(2, 9), UDim2.fromOffset(0, 7))
-CrosshairPart(UDim2.fromOffset(9, 2), UDim2.fromOffset(-7, 0))
-CrosshairPart(UDim2.fromOffset(9, 2), UDim2.fromOffset(7, 0))
+local function createESP(Player)
+    if Player == LocalPlayer then return end
 
---========================================================--
--- OPEN BUTTON
---========================================================--
+    removeESP(Player)
 
-local OpenButton = New("TextButton", {
-    Name = "OpenButton",
-    Size = UDim2.fromOffset(56, 56),
-    Position = UDim2.fromOffset(20, 250),
-    BackgroundColor3 = Theme.Accent,
-    BorderSizePixel = 0,
-    Text = "S",
-    TextColor3 = Color3.new(1, 1, 1),
-    TextSize = 20,
-    Font = Enum.Font.GothamBlack,
-    ZIndex = 100,
-    Parent = ScreenGui,
-})
+    local Character = Player.Character
+    if not Character then return end
 
-Corner(OpenButton, 16)
+    local Root = Character:FindFirstChild("HumanoidRootPart")
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not Root or not Humanoid then return end
 
---========================================================--
--- MAIN WINDOW
---========================================================--
+    local Highlight = Instance.new("Highlight")
+    Highlight.Name = "ESP"
+    Highlight.Adornee = Character
+    Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    Highlight.FillTransparency = 0.65
+    Highlight.OutlineTransparency = 0
+    Highlight.FillColor = Color3.fromRGB(255,50,50)
+    Highlight.OutlineColor = Color3.new(1,1,1)
+    Highlight.Enabled = Settings.ESP
+    Highlight.Parent = Character
 
-local Main = New("Frame", {
-    Name = "Main",
-    Size = UDim2.fromOffset(740, 480),
-    Position = UDim2.new(0.5, -370, 0.5, -240),
-    BackgroundColor3 = Theme.Background,
-    BorderSizePixel = 0,
-    Visible = false,
-    ZIndex = 50,
-    Parent = ScreenGui,
-})
+    local Billboard = Instance.new("BillboardGui")
+    Billboard.Name = "ESPInfo"
+    Billboard.Adornee = Root
+    Billboard.Size = UDim2.fromOffset(200,60)
+    Billboard.StudsOffset = Vector3.new(0,3,0)
+    Billboard.AlwaysOnTop = true
+    Billboard.Enabled = Settings.ESP
+    Billboard.Parent = Gui
 
-Corner(Main, 15)
-Stroke(Main, Theme.Stroke, 1)
+    local Info = Instance.new("TextLabel")
+    Info.Size = UDim2.fromScale(1,1)
+    Info.BackgroundTransparency = 1
+    Info.TextColor3 = Color3.new(1,1,1)
+    Info.TextStrokeTransparency = 0
+    Info.TextSize = 13
+    Info.Font = Enum.Font.GothamBold
+    Info.Text = Player.DisplayName
+    Info.Parent = Billboard
 
---========================================================--
--- HEADER
---========================================================--
+    ESPObjects[Player] = {
+        Highlight = Highlight,
+        Billboard = Billboard,
+        Info = Info
+    }
+end
 
-local Header = New("Frame", {
-    Size = UDim2.new(1, 0, 0, 70),
-    BackgroundColor3 = Theme.Panel,
-    BorderSizePixel = 0,
-    ZIndex = 55,
-    Parent = Main,
-})
+local function setupPlayer(Player)
+    if Player == LocalPlayer then return end
 
-Corner(Header, 15)
-
-New("Frame", {
-    Size = UDim2.new(1, 0, 0, 18),
-    Position = UDim2.new(0, 0, 1, -18),
-    BackgroundColor3 = Theme.Panel,
-    BorderSizePixel = 0,
-    ZIndex = 55,
-    Parent = Header,
-})
-
-New("Frame", {
-    Size = UDim2.new(1, 0, 0, 3),
-    BackgroundColor3 = Theme.Accent,
-    BorderSizePixel = 0,
-    ZIndex = 70,
-    Parent = Main,
-})
-
-local Logo = New("TextLabel", {
-    Size = UDim2.fromOffset(50, 50),
-    Position = UDim2.fromOffset(14, 10),
-    BackgroundColor3 = Theme.Accent,
-    Text = "🔥",
-    TextSize = 24,
-    Font = Enum.Font.GothamBold,
-    TextColor3 = Color3.new(1, 1, 1),
-    ZIndex = 60,
-    Parent = Header,
-})
-
-Corner(Logo, 12)
-
-New("TextLabel", {
-    Size = UDim2.fromOffset(450, 28),
-    Position = UDim2.fromOffset(78, 10),
-    BackgroundTransparency = 1,
-    Text = "DEVELOPER SHOOTING TOOLKIT",
-    TextColor3 = Theme.Text,
-    TextSize = 18,
-    Font = Enum.Font.GothamBold,
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 60,
-    Parent = Header,
-})
-
-New("TextLabel", {
-    Size = UDim2.fromOffset(450, 20),
-    Position = UDim2.fromOffset(79, 38),
-    BackgroundTransparency = 1,
-    Text = "🔥 DELTA EDITION  •  V3",
-    TextColor3 = Theme.SubText,
-    TextSize = 10,
-    Font = Enum.Font.GothamMedium,
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 60,
-    Parent = Header,
-})
-
-local Status = New("TextLabel", {
-    Size = UDim2.fromOffset(120, 31),
-    Position = UDim2.new(1, -135, 0, 20),
-    BackgroundColor3 = Color3.fromRGB(18, 45, 30),
-    Text = "●  ONLINE",
-    TextColor3 = Theme.Good,
-    TextSize = 10,
-    Font = Enum.Font.GothamBold,
-    ZIndex = 60,
-    Parent = Header,
-})
-
-Corner(Status, 8)
-
---========================================================--
--- SIDEBAR
---========================================================--
-
-local Sidebar = New("Frame", {
-    Size = UDim2.fromOffset(160, 390),
-    Position = UDim2.fromOffset(12, 78),
-    BackgroundColor3 = Theme.Panel,
-    BorderSizePixel = 0,
-    ZIndex = 55,
-    Parent = Main,
-})
-
-Corner(Sidebar, 12)
-
-New("UIPadding", {
-    PaddingTop = UDim.new(0, 12),
-    Parent = Sidebar,
-})
-
-New("UIListLayout", {
-    Padding = UDim.new(0, 7),
-    HorizontalAlignment = Enum.HorizontalAlignment.Center,
-    SortOrder = Enum.SortOrder.LayoutOrder,
-    Parent = Sidebar,
-})
-
---========================================================--
--- CONTENT
---========================================================--
-
-local Content = New("Frame", {
-    Size = UDim2.new(1, -187, 1, -91),
-    Position = UDim2.fromOffset(179, 78),
-    BackgroundTransparency = 1,
-    ZIndex = 55,
-    Parent = Main,
-})
-
---========================================================--
--- DRAGGING
---========================================================--
-
-local dragging = false
-local dragStart
-local startPosition
-
-State.Track(Header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPosition = Main.Position
-    end
-end))
-
-State.Track(UserInputService.InputChanged:Connect(function(input)
-    if not dragging then return end
-    if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
-        local delta = input.Position - dragStart
-        Main.Position = UDim2.new(
-            startPosition.X.Scale,
-            startPosition.X.Offset + delta.X,
-            startPosition.Y.Scale,
-            startPosition.Y.Offset + delta.Y
-        )
-    end
-end))
-
-State.Track(UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end))
-
---========================================================--
--- TABS
---========================================================--
-
-local Tabs = {}
-local CurrentTab = nil
-
-local function CreateTab(name, icon)
-    local button = New("TextButton", {
-        Name = name,
-        Size = UDim2.fromOffset(140, 44),
-        BackgroundTransparency = 1,
-        BackgroundColor3 = Theme.Panel2,
-        Text = icon .. "  " .. name,
-        TextColor3 = Theme.SubText,
-        TextSize = 12,
-        Font = Enum.Font.GothamBold,
-        AutoButtonColor = false,
-        ZIndex = 60,
-        Parent = Sidebar,
-    })
-
-    Corner(button, 9)
-    Tabs[name] = button
-
-    button.MouseEnter:Connect(function()
-        if CurrentTab ~= name then
-            Tween(button, { BackgroundTransparency = 0.5 }, 0.12)
+    Player.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        if Settings.ESP then
+            createESP(Player)
         end
     end)
 
-    button.MouseLeave:Connect(function()
-        if CurrentTab ~= name then
-            Tween(button, { BackgroundTransparency = 1 }, 0.12)
-        end
-    end)
-
-    return button
-end
-
-local function SetActiveTab(name)
-    CurrentTab = name
-    for tabName, button in pairs(Tabs) do
-        if tabName == name then
-            Tween(button, {
-                BackgroundTransparency = 0,
-                TextColor3 = Theme.Accent,
-            }, 0.15)
-        else
-            Tween(button, {
-                BackgroundTransparency = 1,
-                TextColor3 = Theme.SubText,
-            }, 0.15)
-        end
+    if Player.Character then
+        createESP(Player)
     end
 end
 
-local function ClearContent()
-    for _, child in ipairs(Content:GetChildren()) do
-        child:Destroy()
-    end
+for _,Player in ipairs(Players:GetPlayers()) do
+    setupPlayer(Player)
 end
 
-local function SectionTitle(text)
-    return New("TextLabel", {
-        Size = UDim2.new(1, 0, 0, 32),
-        BackgroundTransparency = 1,
-        Text = text,
-        TextColor3 = Theme.Text,
-        TextSize = 15,
-        Font = Enum.Font.GothamBold,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 60,
-        Parent = Content,
-    })
-end
+Players.PlayerAdded:Connect(setupPlayer)
+Players.PlayerRemoving:Connect(removeESP)
 
-local function Card(height)
-    local frame = New("Frame", {
-        Size = UDim2.new(1, 0, 0, height),
-        BackgroundColor3 = Theme.Panel,
-        BorderSizePixel = 0,
-        ZIndex = 56,
-        Parent = Content,
-    })
-    Corner(frame, 10)
-    Stroke(frame, Theme.Stroke, 1)
-    return frame
-end
+--========================================================
+-- TEAM CHECK
+--========================================================
 
---========================================================--
--- TOGGLE
---========================================================--
+local function isEnemy(Player)
+    if Player == LocalPlayer then return false end
+    if not Settings.TeamCheck then return true end
 
-local function Toggle(parent, text, configName, y)
-    local holder = New("Frame", {
-        Size = UDim2.new(1, -24, 0, 40),
-        Position = UDim2.fromOffset(12, y),
-        BackgroundTransparency = 1,
-        ZIndex = 60,
-        Parent = parent,
-    })
-
-    New("TextLabel", {
-        Size = UDim2.new(1, -65, 1, 0),
-        BackgroundTransparency = 1,
-        Text = text,
-        TextColor3 = Theme.Text,
-        TextSize = 12,
-        Font = Enum.Font.GothamMedium,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 61,
-        Parent = holder,
-    })
-
-    local switch = New("TextButton", {
-        Size = UDim2.fromOffset(44, 24),
-        Position = UDim2.new(1, -44, 0.5, -12),
-        BackgroundColor3 = Config[configName] and Theme.Accent or Theme.Stroke,
-        Text = "",
-        AutoButtonColor = false,
-        ZIndex = 61,
-        Parent = holder,
-    })
-
-    Corner(switch, 20)
-
-    local knob = New("Frame", {
-        Size = UDim2.fromOffset(18, 18),
-        Position = Config[configName]
-            and UDim2.new(1, -21, 0.5, -9)
-            or UDim2.new(0, 3, 0.5, -9),
-        BackgroundColor3 = Color3.new(1, 1, 1),
-        BorderSizePixel = 0,
-        ZIndex = 62,
-        Parent = switch,
-    })
-
-    Corner(knob, 20)
-
-    switch.MouseButton1Click:Connect(function()
-        Config[configName] = not Config[configName]
-        Tween(switch, {
-            BackgroundColor3 = Config[configName] and Theme.Accent or Theme.Stroke,
-        }, 0.15)
-        Tween(knob, {
-            Position = Config[configName]
-                and UDim2.new(1, -21, 0.5, -9)
-                or UDim2.new(0, 3, 0.5, -9),
-        }, 0.15)
-    end)
-end
-
---========================================================--
--- TARGETING VARIABLES
---========================================================--
-
-local CurrentTarget = nil
-
-local function Camera()
-    return workspace.CurrentCamera
-end
-
-local function Alive(character)
-    if not character then return false end
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    return humanoid and humanoid.Health > 0
-end
-
-local function Enemy(player)
-    if player == LocalPlayer then return false end
-    if Config.TeamCheck then
-        if LocalPlayer.Team ~= nil
-            and player.Team ~= nil
-            and LocalPlayer.Team == player.Team then
-            return false
-        end
-    end
-    return true
-end
-
---========================================================--
--- COMBAT PAGE
---========================================================--
-
-local function ShowCombat()
-    ClearContent()
-
-    SectionTitle("🎯  AIM ASSIST")
-
-    local combat = Card(330)
-
-    Toggle(combat, "Aim Assist", "AimEnabled", 10)
-    Toggle(combat, "FOV Circle", "ShowFOV", 55)
-    Toggle(combat, "Team Check", "TeamCheck", 100)
-    Toggle(combat, "Wall Check", "WallCheck", 145)
-
-    New("TextLabel", {
-        Size = UDim2.new(1, -24, 0, 70),
-        Position = UDim2.fromOffset(12, 205),
-        BackgroundTransparency = 1,
-        Text = "Target Part: " .. Config.TargetPart
-            .. "\nFOV Radius: " .. Config.FOV .. " px"
-            .. "\nAim Strength: " .. Config.AimStrength,
-        TextColor3 = Theme.SubText,
-        TextSize = 11,
-        Font = Enum.Font.GothamMedium,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Top,
-        ZIndex = 60,
-        Parent = combat,
-    })
-
-    local targetStatus = New("TextLabel", {
-        Size = UDim2.fromOffset(160, 32),
-        Position = UDim2.new(1, -175, 0, 15),
-        BackgroundColor3 = Color3.fromRGB(40, 27, 22),
-        Text = "TARGET: NONE",
-        TextColor3 = Theme.AccentLight,
-        TextSize = 9,
-        Font = Enum.Font.GothamBold,
-        ZIndex = 60,
-        Parent = combat,
-    })
-
-    Corner(targetStatus, 8)
-
-    State.Track(RunService.RenderStepped:Connect(function()
-        if targetStatus.Parent then
-            if CurrentTarget then
-                targetStatus.Text = "TARGET: " .. CurrentTarget.DisplayName
-            else
-                targetStatus.Text = "TARGET: NONE"
-            end
-        end
-    end))
-end
-
---========================================================--
--- VISUAL PAGE
---========================================================--
-
-local function ShowVisuals()
-    ClearContent()
-
-    SectionTitle("👁  ESP / VISUALS")
-
-    local visual = Card(365)
-
-    Toggle(visual, "Enable ESP", "ESPEnabled", 10)
-    Toggle(visual, "Player Names", "Names", 55)
-    Toggle(visual, "Health Bars", "HealthBars", 100)
-    Toggle(visual, "Distance", "Distances", 145)
-    Toggle(visual, "3D Boxes", "Boxes", 190)
-    Toggle(visual, "Head Markers", "HeadMarkers", 235)
-    Toggle(visual, "Tracers", "Tracers", 280)
-    Toggle(visual, "Crosshair", "CrosshairEnabled", 325)
-end
-
---========================================================--
--- CROSSHAIR PAGE
---========================================================--
-
-local function ShowCrosshair()
-    ClearContent()
-
-    SectionTitle("✚  CROSSHAIR")
-
-    local cross = Card(220)
-
-    Toggle(cross, "Enable Crosshair", "CrosshairEnabled", 15)
-
-    New("TextLabel", {
-        Size = UDim2.new(1, -24, 0, 65),
-        Position = UDim2.fromOffset(12, 75),
-        BackgroundTransparency = 1,
-        Text = "Your crosshair stays centered on the screen.\n"
-            .. "The FOV circle surrounds your current aim area.",
-        TextColor3 = Theme.SubText,
-        TextSize = 11,
-        Font = Enum.Font.GothamMedium,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Top,
-        ZIndex = 60,
-        Parent = cross,
-    })
-end
-
---========================================================--
--- SETTINGS PAGE
---========================================================--
-
-local function ShowSettings()
-    ClearContent()
-
-    SectionTitle("⚙  SETTINGS")
-
-    local settings = Card(280)
-
-    local function Setting(name, value, y)
-        New("TextLabel", {
-            Size = UDim2.new(0.5, -12, 0, 35),
-            Position = UDim2.fromOffset(12, y),
-            BackgroundTransparency = 1,
-            Text = name,
-            TextColor3 = Theme.SubText,
-            TextSize = 11,
-            Font = Enum.Font.GothamMedium,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 60,
-            Parent = settings,
-        })
-
-        New("TextLabel", {
-            Size = UDim2.new(0.5, -12, 0, 35),
-            Position = UDim2.new(0.5, 0, 0, y),
-            BackgroundTransparency = 1,
-            Text = value,
-            TextColor3 = Theme.Text,
-            TextSize = 11,
-            Font = Enum.Font.GothamBold,
-            TextXAlignment = Enum.TextXAlignment.Right,
-            ZIndex = 60,
-            Parent = settings,
-        })
+    if not LocalPlayer.Team or not Player.Team then
+        return true
     end
 
-    Setting("Edition", "DELTA V3", 12)
-    Setting("Target Part", Config.TargetPart, 52)
-    Setting("FOV", Config.FOV .. " px", 92)
-    Setting("Aim Strength", tostring(Config.AimStrength), 132)
-    Setting("Break Angle", Config.LockBreakAngle .. "°", 172)
-    Setting("Team Check", Config.TeamCheck and "ON" or "OFF", 212)
+    return LocalPlayer.Team ~= Player.Team
 end
 
---========================================================--
--- TAB BUTTONS + INITIAL
---========================================================--
+--========================================================
+-- VISIBILITY
+--========================================================
 
-local CombatTab   = CreateTab("COMBAT", "🎯")
-local VisualTab   = CreateTab("VISUALS", "👁")
-local CrossTab    = CreateTab("CROSSHAIR", "✚")
-local SettingsTab = CreateTab("SETTINGS", "⚙")
+local function isVisible(Character, Part)
+    if not Settings.VisibleCheck then return true end
 
-State.Track(CombatTab.MouseButton1Click:Connect(function()
-    SetActiveTab("COMBAT"); ShowCombat()
-end))
-State.Track(VisualTab.MouseButton1Click:Connect(function()
-    SetActiveTab("VISUALS"); ShowVisuals()
-end))
-State.Track(CrossTab.MouseButton1Click:Connect(function()
-    SetActiveTab("CROSSHAIR"); ShowCrosshair()
-end))
-State.Track(SettingsTab.MouseButton1Click:Connect(function()
-    SetActiveTab("SETTINGS"); ShowSettings()
-end))
+    local Origin = Camera.CFrame.Position
+    local Direction = Part.Position - Origin
 
-SetActiveTab("COMBAT")
-ShowCombat()
+    local Params = RaycastParams.new()
+    Params.FilterType = Enum.RaycastFilterType.Exclude
+    Params.FilterDescendantsInstances = {
+        LocalPlayer.Character,
+        Camera
+    }
 
---========================================================--
--- OPEN / CLOSE
---========================================================--
+    local Result = Workspace:Raycast(Origin, Direction, Params)
+    if not Result then return true end
 
-State.Track(OpenButton.MouseButton1Click:Connect(function()
-    Main.Visible = not Main.Visible
-end))
-
---========================================================--
--- WALL CHECK
---========================================================--
-
-local function Visible(targetPart, character)
-    if not Config.WallCheck then return true end
-    local camera = Camera()
-    if not camera then return false end
-
-    local origin = camera.CFrame.Position
-    local direction = targetPart.Position - origin
-
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = { LocalPlayer.Character, camera }
-
-    local result = workspace:Raycast(origin, direction, params)
-    if not result then return true end
-    return result.Instance:IsDescendantOf(character)
+    return Result.Instance:IsDescendantOf(Character)
 end
 
---========================================================--
--- GET BEST TARGET
---========================================================--
+--========================================================
+-- FIND CLOSEST TARGET
+--========================================================
 
-local function GetTarget()
-    local camera = Camera()
-    if not camera then return nil end
+local function getClosestTarget()
+    local Closest = nil
+    local ClosestDistance = math.huge
 
-    local viewport = camera.ViewportSize
-    local center = Vector2.new(viewport.X / 2, viewport.Y / 2)
+    local Center = Vector2.new(
+        Camera.ViewportSize.X / 2,
+        Camera.ViewportSize.Y / 2
+    )
 
-    local bestPlayer = nil
-    local bestDistance = Config.FOV
+    for _,Player in ipairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer and isEnemy(Player) then
+            local Character = Player.Character
+            if Character then
+                local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+                local Root = Character:FindFirstChild("HumanoidRootPart")
+                local Head = Character:FindFirstChild(Settings.AimPart)
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if Enemy(player) then
-            local character = player.Character
-            if Alive(character) then
-                local targetPart = character:FindFirstChild(Config.TargetPart)
-                    or character:FindFirstChild("Head")
+                if Humanoid and Humanoid.Health > 0 and Root and Head then
+                    local WorldDistance = (Root.Position - Camera.CFrame.Position).Magnitude
 
-                if targetPart then
-                    local screen, onScreen = camera:WorldToViewportPoint(targetPart.Position)
-                    if onScreen and screen.Z > 0 then
-                        local point = Vector2.new(screen.X, screen.Y)
-                        local distance = (point - center).Magnitude
-                        if distance <= bestDistance then
-                            if Visible(targetPart, character) then
-                                bestDistance = distance
-                                bestPlayer = player
+                    if WorldDistance <= Settings.AimMaxDistance then
+                        local ScreenPosition, OnScreen = Camera:WorldToViewportPoint(Head.Position)
+
+                        if OnScreen then
+                            local ScreenDistance = (Vector2.new(ScreenPosition.X, ScreenPosition.Y) - Center).Magnitude
+
+                            if ScreenDistance <= Settings.AimFOV then
+                                if isVisible(Character, Head) then
+                                    if ScreenDistance < ClosestDistance then
+                                        ClosestDistance = ScreenDistance
+                                        Closest = Player
+                                    end
+                                end
                             end
                         end
                     end
@@ -827,363 +441,256 @@ local function GetTarget()
         end
     end
 
-    return bestPlayer
+    return Closest
 end
 
---========================================================--
--- ANGLE CHECK
---========================================================--
+--========================================================
+-- INSTANT HEAD LOCK
+--========================================================
 
-local function GetAngle(player)
-    local camera = Camera()
-    if not camera then return math.huge end
+local function lockOntoHead(Player)
+    if not Player then return end
 
-    local character = player.Character
-    if not character then return math.huge end
+    local Character = Player.Character
+    if not Character then return end
 
-    local targetPart = character:FindFirstChild(Config.TargetPart)
-        or character:FindFirstChild("Head")
-    if not targetPart then return math.huge end
+    local Head = Character:FindFirstChild("Head")
+    if not Head then return end
 
-    local direction = (targetPart.Position - camera.CFrame.Position).Unit
-    local dot = math.clamp(camera.CFrame.LookVector:Dot(direction), -1, 1)
-    return math.deg(math.acos(dot))
+    Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, Head.Position)
 end
 
---========================================================--
--- AIM
---========================================================--
+--========================================================
+-- AIM BUTTON
+--========================================================
 
-local function AimAt(player)
-    local camera = Camera()
-    if not camera then return end
+local Aiming = false
 
-    local character = player.Character
-    if not character then return end
+local AimTouch = Instance.new("TextButton")
+AimTouch.Name = "AimButton"
+AimTouch.Size = UDim2.fromOffset(78,78)
+AimTouch.Position = UDim2.new(1,-100,1,-120)
+AimTouch.BackgroundColor3 = Color3.fromRGB(30,30,30)
+AimTouch.BackgroundTransparency = 0.1
+AimTouch.Text = "AIM"
+AimTouch.TextColor3 = Color3.new(1,1,1)
+AimTouch.TextSize = 18
+AimTouch.Font = Enum.Font.GothamBold
+AimTouch.Parent = Gui
 
-    local targetPart = character:FindFirstChild(Config.TargetPart)
-        or character:FindFirstChild("Head")
-    if not targetPart then return end
+local AimCorner = Instance.new("UICorner")
+AimCorner.CornerRadius = UDim.new(1,0)
+AimCorner.Parent = AimTouch
 
-    local desired = CFrame.lookAt(camera.CFrame.Position, targetPart.Position)
-    camera.CFrame = camera.CFrame:Lerp(desired, Config.AimStrength)
+AimTouch.Activated:Connect(function()
+    if Settings.HoldToAim then
+        Aiming = true
+    else
+        Aiming = not Aiming
+    end
+end)
+
+--========================================================
+-- TRIGGERBOT
+--========================================================
+
+local LastTrigger = 0
+
+local function triggerShot()
+    local WeaponSystem = LocalPlayer:FindFirstChild("WeaponSystem")
+    if not WeaponSystem then return end
+
+    local Fire = WeaponSystem:FindFirstChild("Fire")
+    if Fire and Fire:IsA("RemoteEvent") then
+        Fire:FireServer()
+    end
 end
 
---========================================================--
--- ESP
---========================================================--
+local function triggerCheck()
+    if not Settings.Triggerbot then return end
 
-local ESP = {}
+    local Viewport = Camera.ViewportSize
+    local X = Viewport.X / 2
+    local Y = Viewport.Y / 2
 
-local function CreateESP(player)
-    if player == LocalPlayer then return end
-    if ESP[player] then return end
+    local Ray = Camera:ViewportPointToRay(X, Y)
 
-    local data = {}
+    local Params = RaycastParams.new()
+    Params.FilterType = Enum.RaycastFilterType.Exclude
+    Params.FilterDescendantsInstances = { LocalPlayer.Character }
 
-    -- Overhead card
-    local billboard = New("BillboardGui", {
-        Name = "PlayerESP",
-        Size = UDim2.fromOffset(135, 52),
-        StudsOffset = Vector3.new(0, 2.8, 0),
-        AlwaysOnTop = true,
-        LightInfluence = 0,
-        Enabled = false,
-        Parent = ScreenGui,
-    })
+    local Result = Workspace:Raycast(Ray.Origin, Ray.Direction * Settings.AimMaxDistance, Params)
+    if not Result then return end
 
-    data.Billboard = billboard
+    local Character = Result.Instance:FindFirstAncestorOfClass("Model")
+    if not Character then return end
 
-    local background = New("Frame", {
-        Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Theme.Background,
-        BackgroundTransparency = 0.1,
-        BorderSizePixel = 0,
-        Parent = billboard,
-    })
+    local Target = Players:GetPlayerFromCharacter(Character)
+    if not Target then return end
 
-    Corner(background, 7)
-    data.Outline = Stroke(background, Theme.Accent, 1, 0.15)
+    if not isEnemy(Target) then return end
 
-    data.Name = New("TextLabel", {
-        Size = UDim2.new(1, -10, 0, 16),
-        Position = UDim2.fromOffset(5, 3),
-        BackgroundTransparency = 1,
-        Text = player.DisplayName,
-        TextColor3 = Theme.Text,
-        TextSize = 10,
-        Font = Enum.Font.GothamBold,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        Parent = background,
-    })
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not Humanoid or Humanoid.Health <= 0 then return end
 
-    data.Username = New("TextLabel", {
-        Size = UDim2.new(1, -10, 0, 12),
-        Position = UDim2.fromOffset(5, 18),
-        BackgroundTransparency = 1,
-        Text = "@" .. player.Name,
-        TextColor3 = Theme.SubText,
-        TextSize = 8,
-        Font = Enum.Font.GothamMedium,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        Parent = background,
-    })
+    if os.clock() - LastTrigger < Settings.TriggerDelay then return end
+    LastTrigger = os.clock()
 
-    data.HealthBack = New("Frame", {
-        Size = UDim2.new(1, -10, 0, 4),
-        Position = UDim2.fromOffset(5, 32),
-        BackgroundColor3 = Color3.fromRGB(35, 37, 45),
-        BorderSizePixel = 0,
-        Parent = background,
-    })
+    triggerShot()
+end
 
-    Corner(data.HealthBack, 5)
+--========================================================
+-- BUTTONS
+--========================================================
 
-    data.Health = New("Frame", {
-        Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Theme.Good,
-        BorderSizePixel = 0,
-        Parent = data.HealthBack,
-    })
+local ESPButton
+ESPButton = createButton("ESP: ON", 2, function()
+    Settings.ESP = not Settings.ESP
+    ESPButton.Text = "ESP: " .. (Settings.ESP and "ON" or "OFF")
 
-    Corner(data.Health, 5)
+    for _,Data in pairs(ESPObjects) do
+        if Data.Highlight then Data.Highlight.Enabled = Settings.ESP end
+        if Data.Billboard then Data.Billboard.Enabled = Settings.ESP end
+    end
+end)
 
-    data.Distance = New("TextLabel", {
-        Size = UDim2.new(1, -10, 0, 12),
-        Position = UDim2.fromOffset(5, 39),
-        BackgroundTransparency = 1,
-        Text = "",
-        TextColor3 = Theme.SubText,
-        TextSize = 7,
-        Font = Enum.Font.GothamMedium,
-        Parent = background,
-    })
+local AimButton
+AimButton = createButton("AIMBOT: OFF", 3, function()
+    Settings.AimbotEnabled = not Settings.AimbotEnabled
+    AimButton.Text = "AIMBOT: " .. (Settings.AimbotEnabled and "ON" or "OFF")
+end)
 
-    -- Head marker
-    data.HeadMarker = New("BillboardGui", {
-        Name = "HeadMarker",
-        Size = UDim2.fromOffset(11, 11),
-        AlwaysOnTop = true,
-        LightInfluence = 0,
-        Enabled = false,
-        Parent = ScreenGui,
-    })
+local TriggerButton
+TriggerButton = createButton("TRIGGERBOT: OFF", 4, function()
+    Settings.Triggerbot = not Settings.Triggerbot
+    TriggerButton.Text = "TRIGGERBOT: " .. (Settings.Triggerbot and "ON" or "OFF")
+end)
 
-    local marker = New("Frame", {
-        Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Theme.Accent,
-        BorderSizePixel = 0,
-        Parent = data.HeadMarker,
-    })
+local FOVButton
+FOVButton = createButton("FOV CIRCLE: ON", 5, function()
+    Settings.FOVCircle = not Settings.FOVCircle
+    FOV.Visible = Settings.FOVCircle
+    FOVButton.Text = "FOV CIRCLE: " .. (Settings.FOVCircle and "ON" or "OFF")
+end)
 
-    Corner(marker, 999)
+local CrosshairButton
+CrosshairButton = createButton("CROSSHAIR: ON", 6, function()
+    Settings.Crosshair = not Settings.Crosshair
+    Crosshair.Visible = Settings.Crosshair
+    CrosshairButton.Text = "CROSSHAIR: " .. (Settings.Crosshair and "ON" or "OFF")
+end)
 
-    -- 3D box
-    data.Box = New("Highlight", {
-        Name = "ESPHighlight",
-        DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
-        FillTransparency = 1,
-        OutlineTransparency = 0.15,
-        OutlineColor = Theme.Accent,
-        Enabled = false,
-        Parent = ScreenGui,
-    })
+local TeamButton
+TeamButton = createButton("TEAM CHECK: ON", 7, function()
+    Settings.TeamCheck = not Settings.TeamCheck
+    TeamButton.Text = "TEAM CHECK: " .. (Settings.TeamCheck and "ON" or "OFF")
+end)
 
-    -- Tracer (fixed: attach to camera & target root, not Terrain)
-    data.TracerStart = New("Attachment", {
-        Name = "DST_TracerStart_" .. player.Name,
-        Parent = workspace.CurrentCamera,
-    })
+local VisibleButton
+VisibleButton = createButton("VISIBLE ONLY: ON", 8, function()
+    Settings.VisibleCheck = not Settings.VisibleCheck
+    VisibleButton.Text = "VISIBLE ONLY: " .. (Settings.VisibleCheck and "ON" or "OFF")
+end)
 
-    data.TracerEnd = New("Attachment", {
-        Name = "DST_TracerEnd_" .. player.Name,
-        Parent = workspace.CurrentCamera,
-    })
+--========================================================
+-- MAIN LOOP (connections stored for cleanup)
+--========================================================
 
-    data.Tracer = New("Beam", {
-        Name = "DST_Tracer_" .. player.Name,
-        Attachment0 = data.TracerStart,
-        Attachment1 = data.TracerEnd,
-        FaceCamera = true,
-        Width0 = 0.03,
-        Width1 = 0.03,
-        Color = ColorSequence.new(Theme.Accent),
-        Enabled = false,
-        Parent = workspace.CurrentCamera,
-    })
+local Connections = {}
 
-    -- Character binding
-    local function Bind(character)
-        local head = character:FindFirstChild("Head")
-        local root = character:FindFirstChild("HumanoidRootPart")
+table.insert(Connections, RunService.RenderStepped:Connect(function()
+    FOV.Size = UDim2.fromOffset(Settings.AimFOV * 2, Settings.AimFOV * 2)
 
-        if head then
-            billboard.Adornee = head
-            data.HeadMarker.Adornee = head
-        end
-
-        data.Box.Adornee = character
-
-        if root then
-            data.TracerEnd.Parent = root
+    if Settings.AimbotEnabled and Aiming then
+        local Target = getClosestTarget()
+        if Target then
+            lockOntoHead(Target)
         end
     end
 
-    if player.Character then
-        task.spawn(Bind, player.Character)
-    end
+    triggerCheck()
 
-    data.CharacterConnection = player.CharacterAdded:Connect(function(character)
-        character:WaitForChild("HumanoidRootPart", 5)
-        character:WaitForChild("Head", 5)
-        task.wait(0.1)
-        Bind(character)
-    end)
+    for Player,Data in pairs(ESPObjects) do
+        if Player.Character then
+            local Humanoid = Player.Character:FindFirstChildOfClass("Humanoid")
+            local Root = Player.Character:FindFirstChild("HumanoidRootPart")
 
-    ESP[player] = data
-end
+            if Humanoid and Root then
+                local Distance = (Root.Position - Camera.CFrame.Position).Magnitude
+                local Text = Player.DisplayName
 
-local function RemoveESP(player)
-    local data = ESP[player]
-    if not data then return end
-
-    if data.CharacterConnection then
-        data.CharacterConnection:Disconnect()
-    end
-
-    for _, object in pairs(data) do
-        if typeof(object) == "Instance" then
-            pcall(function() object:Destroy() end)
-        end
-    end
-
-    ESP[player] = nil
-end
-
-for _, player in ipairs(Players:GetPlayers()) do
-    CreateESP(player)
-end
-
-State.Track(Players.PlayerAdded:Connect(CreateESP))
-State.Track(Players.PlayerRemoving:Connect(RemoveESP))
-
---========================================================--
--- UPDATE ESP
---========================================================--
-
-local function UpdateESP()
-    local camera = Camera()
-    if not camera then return end
-
-    for player, data in pairs(ESP) do
-        if not player.Parent then
-            RemoveESP(player)
-            continue
-        end
-
-        local character = player.Character
-        local alive = Alive(character)
-        local enemy = Enemy(player)
-        local enabled = Config.ESPEnabled and alive and enemy
-
-        data.Billboard.Enabled = enabled and (Config.Names or Config.HealthBars or Config.Distances)
-        data.HeadMarker.Enabled = enabled and Config.HeadMarkers
-        data.Box.Enabled = enabled and Config.Boxes
-        data.Tracer.Enabled = enabled and Config.Tracers
-
-        if enabled then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            local root = character:FindFirstChild("HumanoidRootPart")
-            local head = character:FindFirstChild("Head")
-
-            data.Name.Visible = Config.Names
-            data.Username.Visible = Config.Names
-            data.HealthBack.Visible = Config.HealthBars
-            data.Distance.Visible = Config.Distances
-
-            if humanoid then
-                local percentage = math.clamp(humanoid.Health / math.max(humanoid.MaxHealth, 1), 0, 1)
-                data.Health.Size = UDim2.new(percentage, 0, 1, 0)
-
-                if percentage > 0.5 then
-                    data.Health.BackgroundColor3 = Theme.Good
-                elseif percentage > 0.25 then
-                    data.Health.BackgroundColor3 = Theme.Warn
-                else
-                    data.Health.BackgroundColor3 = Theme.Bad
+                if Settings.ESPHealth then
+                    Text = Text .. "\nHP: " .. math.floor(Humanoid.Health)
                 end
-            end
 
-            -- Distance
-            if root and head then
-                local distance = (camera.CFrame.Position - head.Position).Magnitude
-                data.Distance.Text = math.floor(distance) .. " studs"
-            end
+                if Settings.ESPDistance then
+                    Text = Text .. "\n" .. math.floor(Distance) .. " studs"
+                end
 
-            -- Tracer endpoints
-            if data.TracerStart and data.TracerStart.Parent then
-                data.TracerStart.WorldPosition = camera.CFrame.Position
-                    - camera.CFrame.LookVector * 0.5
-                    + camera.CFrame.RightVector * 0.6
-                    - camera.CFrame.UpVector * 0.5
-            end
-
-            if root and data.TracerEnd.Parent ~= root then
-                data.TracerEnd.Parent = root
-            end
-            if root then
-                data.TracerEnd.Position = Vector3.new(0, 0, 0)
-            end
-
-            -- Highlight target
-            if player == CurrentTarget then
-                data.Outline.Transparency = 0.1
-                data.Box.OutlineColor = Color3.new(1, 1, 1)
-            else
-                data.Outline.Transparency = 0.15
-                data.Box.OutlineColor = Theme.Accent
+                Data.Info.Text = Text
             end
         end
     end
-end
-
---========================================================--
--- MAIN LOOP
---========================================================--
-
-State.Track(RunService.RenderStepped:Connect(function()
-    local camera = workspace.CurrentCamera
-    if not camera then return end
-
-    -- FOV circle follows center + toggles
-    local viewport = camera.ViewportSize
-    FOVCircle.Position = UDim2.fromOffset(viewport.X / 2, viewport.Y / 2)
-    FOVCircle.Size = UDim2.fromOffset(Config.FOV * 2, Config.FOV * 2)
-    FOVCircle.Visible = Config.AimEnabled and Config.ShowFOV
-    Crosshair.Visible = Config.CrosshairEnabled
-
-    -- Target retention
-    if CurrentTarget then
-        if not CurrentTarget.Character
-            or not Alive(CurrentTarget.Character)
-            or not Enemy(CurrentTarget)
-            or GetAngle(CurrentTarget) > Config.LockBreakAngle then
-            CurrentTarget = nil
-        end
-    end
-
-    -- Acquire
-    if not CurrentTarget then
-        CurrentTarget = GetTarget()
-    end
-
-    -- Aim
-    if Config.AimEnabled and CurrentTarget then
-        AimAt(CurrentTarget)
-    end
-
-    -- ESP
-    UpdateESP()
 end))
 
-print("[DSTv3] Loaded. Tap the 'S' button on the left to open the menu.")
+--========================================================
+-- AIM HOLD SUPPORT
+--========================================================
+
+table.insert(Connections, AimTouch.MouseButton1Down:Connect(function()
+    if Settings.HoldToAim then
+        Aiming = true
+    end
+end))
+
+table.insert(Connections, AimTouch.MouseButton1Up:Connect(function()
+    if Settings.HoldToAim then
+        Aiming = false
+    end
+end))
+
+--========================================================
+-- PC TEST KEYS
+--========================================================
+
+table.insert(Connections, UserInputService.InputBegan:Connect(function(Input, Processed)
+    if Processed then return end
+
+    if Input.KeyCode == Enum.KeyCode.Q then
+        Settings.AimbotEnabled = not Settings.AimbotEnabled
+    end
+
+    if Input.KeyCode == Enum.KeyCode.E then
+        Settings.Triggerbot = not Settings.Triggerbot
+    end
+end))
+
+--========================================================
+-- CLEANUP FUNCTION (allows re-execution)
+--========================================================
+
+_G.HoodRivalsCleanup = function()
+    for _, conn in ipairs(Connections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    for _,Data in pairs(ESPObjects) do
+        if Data.Highlight then pcall(function() Data.Highlight:Destroy() end) end
+        if Data.Billboard then pcall(function() Data.Billboard:Destroy() end) end
+    end
+    ESPObjects = {}
+    if Gui then
+        pcall(function() Gui:Destroy() end)
+    end
+end
+
+--========================================================
+-- MOBILE NOTIFICATION (Delta has notify)
+--========================================================
+
+if notify then
+    pcall(function()
+        notify("Hood Rivals", "Mobile combat system loaded ✅")
+    end)
+end
+
+print("🔥 Hood Rivals mobile combat system loaded (Delta).")
